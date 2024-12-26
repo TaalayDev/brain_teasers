@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
 import '../theme/app_theme.dart';
 import '../components/game_container.dart';
+import 'game_controller.dart';
 
 class FlowConnectGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const FlowConnectGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -35,23 +32,41 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
   int timeRemaining = 0;
   int currentLevel = 0;
 
+  int get easyLevelsCount => FlowLevels.easyLevels.length;
+  int get mediumLevelsCount => FlowLevels.mediumLevels.length;
+  int get hardLevelsCount => FlowLevels.hardLevels.length;
+
   @override
   void initState() {
     super.initState();
+    _initData();
     _initializeGame();
     _startTimer();
   }
 
+  void _initData() {
+    final data = widget.gameData;
+    currentLevel = data['level'] ?? 0;
+    score = data['score'] ?? 1000;
+    moves = data['moves'] ?? 0;
+  }
+
   void _initializeGame() {
+    isComplete = false;
+    timeRemaining = 0;
+
     String difficulty = 'easy';
-    if (currentLevel < 3) {
+    if (currentLevel < easyLevelsCount) {
       level = FlowLevels.getLevel(difficulty, currentLevel);
-    } else if (currentLevel < 6) {
+    } else if (currentLevel < easyLevelsCount + mediumLevelsCount) {
       difficulty = 'medium';
-      level = FlowLevels.getLevel(difficulty, currentLevel - 3);
+      level = FlowLevels.getLevel(difficulty, currentLevel - easyLevelsCount);
     } else {
       difficulty = 'hard';
-      level = FlowLevels.getLevel(difficulty, currentLevel - 6);
+      level = FlowLevels.getLevel(
+        difficulty,
+        currentLevel - easyLevelsCount - mediumLevelsCount,
+      );
     }
 
     timeRemaining = level.timeLimit;
@@ -82,32 +97,6 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
     paths = [];
   }
 
-  void _placePairs() {
-    final random = math.Random();
-    final gridSize = level.gridSize;
-    final numPairs = 4;
-
-    for (int i = 0; i < numPairs; i++) {
-      // Place first endpoint
-      int x1, y1, x2, y2;
-      do {
-        x1 = random.nextInt(gridSize);
-        y1 = random.nextInt(gridSize);
-      } while (grid[y1][x1].color != null);
-
-      // Place second endpoint
-      do {
-        x2 = random.nextInt(gridSize);
-        y2 = random.nextInt(gridSize);
-      } while (grid[y2][x2].color != null || (x1 == x2 && y1 == y2));
-
-      grid[y1][x1].color = colors[i];
-      grid[y1][x1].isEndpoint = true;
-      grid[y2][x2].color = colors[i];
-      grid[y2][x2].isEndpoint = true;
-    }
-  }
-
   void _startTimer() {
     Future.delayed(const Duration(seconds: 1), () {
       if (!mounted || isComplete) return;
@@ -124,8 +113,7 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
   }
 
   void _handleTimeout() {
-    // Handle game over due to time running out
-    widget.onComplete();
+    widget.gameController.completeGame();
   }
 
   void _onPanStart(DragStartDetails details) {
@@ -195,16 +183,18 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
         .toSet();
 
     if (connectedColors.length == totalColors.length) {
-      isComplete = true;
       score = _calculateScore();
-      widget.onScoreUpdate(score);
+      widget.gameController.updateScore(score);
 
-      if (currentLevel < 8) {
+      if (currentLevel <
+          easyLevelsCount + mediumLevelsCount + hardLevelsCount - 1) {
         currentLevel++;
+        widget.gameController.nextLevel();
         _initializeGame();
         _startTimer();
       } else {
-        widget.onComplete();
+        isComplete = true;
+        widget.gameController.completeGame();
       }
     }
   }
@@ -225,7 +215,6 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
   }
 
   bool _canMoveTo(Offset pos) {
-    final lastPoint = currentPath!.points.last;
     final cell = grid[pos.dy.toInt()][pos.dx.toInt()];
 
     if (cell.isObstacle) {
@@ -268,12 +257,16 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
           _buildHeader(),
           Expanded(
             child: Center(
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: _buildGameBoard(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: _buildGameBoard(),
+                ),
               ),
             ),
           ),
+          _buildFooter(),
         ],
       ),
     );
@@ -285,58 +278,83 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                'Flow Connect',
-                style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+              _buildStatCard(
+                icon: Icons.stars,
+                label: 'Score',
+                value: score.toString(),
+                color: AppTheme.accentColor,
               ),
-              Text(
-                'Connect matching colors',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.white70,
-                ),
+              const SizedBox(width: 8),
+              _buildStatCard(
+                icon: Icons.timer,
+                label: 'Time',
+                value: _formatTime(timeRemaining),
+                color: AppTheme.primaryColor,
               ),
             ],
           ),
-          InkWell(
-            onTap: () {
-              _initializeGame();
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
+          Row(
+            children: [
+              _buildStatCard(
+                icon: Icons.swap_horiz,
+                label: 'Level',
+                value: '${currentLevel + 1}',
+                color: AppTheme.accentColor,
               ),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.star, color: AppTheme.accentColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    score.toString(),
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: color,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
   Widget _buildGameBoard() {
@@ -352,6 +370,56 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
           gridSize: level.gridSize,
         ),
       ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildFooterButton(
+            icon: Icons.refresh,
+            label: 'Reset',
+            onPressed: () {
+              setState(() {
+                paths.clear();
+                currentPath = null;
+                moves = 0;
+              });
+            },
+          ),
+          _buildFooterButton(
+            icon: Icons.undo,
+            label: 'Undo',
+            onPressed: () {
+              if (currentPath != null && currentPath!.points.isNotEmpty) {
+                setState(() {
+                  currentPath!.points.removeLast();
+                });
+              }
+            },
+          ),
+          _buildFooterButton(
+            icon: Icons.arrow_forward,
+            label: 'Skip',
+            onPressed: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      label: Text(label),
     );
   }
 }
@@ -501,7 +569,11 @@ class FlowGridPainter extends CustomPainter {
   }
 
   void _drawPath(
-      Canvas canvas, List<Offset> points, double cellSize, Paint paint) {
+    Canvas canvas,
+    List<Offset> points,
+    double cellSize,
+    Paint paint,
+  ) {
     if (points.isEmpty) return;
 
     final path = Path();
@@ -560,6 +632,13 @@ class FlowLevels {
     Colors.orange,
     Colors.teal,
     Colors.pink,
+    Colors.cyan,
+    Colors.lime,
+    Colors.indigo,
+    Colors.amber,
+    Colors.brown,
+    Colors.grey,
+    Colors.lightBlue,
   ];
 
   static final List<FlowLevel> easyLevels = [
@@ -592,121 +671,207 @@ class FlowLevels {
     ),
     const FlowLevel(
       points: [
-        [LevelPoint(0, 0, 1), LevelPoint(1, 4, 1)], // Blue
-        [LevelPoint(2, 1, 0), LevelPoint(3, 2, 0)], // Red
-        [LevelPoint(4, 0, 2), LevelPoint(4, 4, 2)], // Green
+        [LevelPoint(4, 0, 1), LevelPoint(3, 2, 1)],
+        [LevelPoint(4, 2, 0), LevelPoint(1, 4, 0)],
+        [LevelPoint(3, 3, 2), LevelPoint(0, 4, 2)],
+        [LevelPoint(1, 1, 3), LevelPoint(4, 1, 3)],
       ],
       gridSize: 5,
       difficulty: 'easy',
       timeLimit: 90,
       description: 'Connect matching colors! (Easy)',
-      obstacles: [
-        LevelPoint(2, 2, -1),
+    ),
+    const FlowLevel(
+      points: [
+        [LevelPoint(0, 1, 1), LevelPoint(5, 3, 1)],
+        [LevelPoint(1, 1, 0), LevelPoint(0, 2, 0)],
+        [LevelPoint(2, 1, 3), LevelPoint(1, 4, 3)],
+        [LevelPoint(3, 1, 4), LevelPoint(4, 4, 4)],
+        [LevelPoint(3, 2, 2), LevelPoint(0, 3, 2)],
+        [LevelPoint(5, 4, 5), LevelPoint(3, 5, 5)]
       ],
+      gridSize: 6,
+      difficulty: 'easy',
+      timeLimit: 120,
+      description: 'Connect matching colors! (Easy)',
+    ),
+    const FlowLevel(
+      points: [
+        [LevelPoint(3, 0, 3), LevelPoint(5, 2, 3)],
+        [LevelPoint(1, 1, 1), LevelPoint(3, 2, 1)],
+        [LevelPoint(3, 1, 2), LevelPoint(4, 4, 2)],
+        [LevelPoint(2, 3, 0), LevelPoint(4, 5, 0)],
+        [LevelPoint(5, 3, 4), LevelPoint(5, 5, 4)]
+      ],
+      gridSize: 6,
+      difficulty: 'easy',
+      timeLimit: 150,
+      description: 'Connect matching colors! (Easy)',
     ),
   ];
 
   static final List<FlowLevel> mediumLevels = [
     const FlowLevel(
       points: [
-        [LevelPoint(0, 0, 0), LevelPoint(5, 5, 0)], // Red
-        [LevelPoint(0, 5, 1), LevelPoint(5, 0, 1)], // Blue
-        [LevelPoint(2, 2, 2), LevelPoint(3, 3, 2)], // Green
-        [LevelPoint(2, 3, 3), LevelPoint(3, 2, 3)], // Yellow
-        [LevelPoint(0, 2, 4), LevelPoint(5, 3, 4)], // Purple
+        [LevelPoint(6, 0, 1), LevelPoint(5, 6, 1)],
+        [LevelPoint(5, 1, 4), LevelPoint(1, 2, 4)],
+        [LevelPoint(6, 1, 0), LevelPoint(4, 5, 0)],
+        [LevelPoint(3, 3, 2), LevelPoint(2, 4, 2)],
+        [LevelPoint(4, 3, 5), LevelPoint(6, 6, 5)],
+        [LevelPoint(4, 4, 3), LevelPoint(5, 5, 3)]
       ],
-      gridSize: 6,
-      difficulty: 'medium',
-      timeLimit: 120,
-      description: 'Five color challenge',
-    ),
-    const FlowLevel(
-      points: [
-        [LevelPoint(0, 0, 0), LevelPoint(4, 4, 0)], // Red
-        [LevelPoint(1, 1, 1), LevelPoint(3, 3, 1)], // Blue
-        [LevelPoint(2, 0, 2), LevelPoint(2, 4, 2)], // Green
-        [LevelPoint(0, 2, 3), LevelPoint(4, 2, 3)], // Yellow
-        [LevelPoint(1, 3, 4), LevelPoint(3, 1, 4)], // Purple
-      ],
-      gridSize: 5,
-      difficulty: 'medium',
-      timeLimit: 150,
-      description: 'Interweaved paths',
-    ),
-    const FlowLevel(
-      points: [
-        [LevelPoint(0, 0, 0), LevelPoint(5, 5, 0)], // Red
-        [LevelPoint(5, 0, 1), LevelPoint(0, 5, 1)], // Blue
-        [LevelPoint(2, 0, 2), LevelPoint(3, 5, 2)], // Green
-        [LevelPoint(0, 2, 3), LevelPoint(5, 3, 3)], // Yellow
-        [LevelPoint(2, 2, 4), LevelPoint(3, 3, 4)], // Purple
-      ],
-      gridSize: 6,
+      gridSize: 7,
       difficulty: 'medium',
       timeLimit: 180,
-      description: 'Complex crossings',
+      description: 'Connect matching colors! (Medium)',
+    ),
+    const FlowLevel(
+      points: [
+        [LevelPoint(4, 2, 5), LevelPoint(0, 5, 5)],
+        [LevelPoint(5, 2, 0), LevelPoint(1, 3, 0)],
+        [LevelPoint(6, 3, 2), LevelPoint(0, 4, 2)],
+        [LevelPoint(4, 4, 3), LevelPoint(5, 5, 3)],
+        [LevelPoint(2, 5, 1), LevelPoint(6, 6, 1)],
+        [LevelPoint(0, 6, 4), LevelPoint(5, 6, 4)]
+      ],
+      gridSize: 7,
+      difficulty: 'medium',
+      timeLimit: 200,
+      description: 'Connect matching colors! (Medium)',
+    ),
+    const FlowLevel(
+      points: [
+        [LevelPoint(2, 0, 2), LevelPoint(6, 5, 2)],
+        [LevelPoint(3, 0, 5), LevelPoint(6, 4, 5)],
+        [LevelPoint(2, 1, 4), LevelPoint(5, 4, 4)],
+        [LevelPoint(3, 1, 1), LevelPoint(5, 3, 1)],
+        [LevelPoint(2, 2, 3), LevelPoint(3, 3, 3)],
+        [LevelPoint(3, 2, 0), LevelPoint(2, 4, 0)]
+      ],
+      gridSize: 7,
+      difficulty: 'medium',
+      timeLimit: 200,
+      description: 'Connect matching colors! (Medium)',
+    ),
+    const FlowLevel(
+      points: [
+        [LevelPoint(2, 0, 4), LevelPoint(1, 6, 4)],
+        [LevelPoint(4, 0, 0), LevelPoint(7, 3, 0)],
+        [LevelPoint(5, 0, 8), LevelPoint(7, 2, 8)],
+        [LevelPoint(1, 1, 3), LevelPoint(5, 3, 3)],
+        [LevelPoint(4, 1, 6), LevelPoint(6, 1, 6)],
+        [LevelPoint(0, 3, 2), LevelPoint(3, 7, 2)],
+        [LevelPoint(7, 4, 5), LevelPoint(5, 7, 5)],
+        [LevelPoint(5, 5, 1), LevelPoint(3, 6, 1)],
+        [LevelPoint(2, 6, 7), LevelPoint(4, 7, 7)]
+      ],
+      gridSize: 8,
+      difficulty: 'medium',
+      timeLimit: 220,
+      description: 'Connect matching colors! (Medium)',
+    ),
+    const FlowLevel(
+      points: [
+        [LevelPoint(0, 0, 2), LevelPoint(2, 1, 2)],
+        [LevelPoint(1, 0, 0), LevelPoint(2, 7, 0)],
+        [LevelPoint(4, 0, 6), LevelPoint(7, 0, 6)],
+        [LevelPoint(4, 2, 4), LevelPoint(0, 7, 4)],
+        [LevelPoint(2, 3, 1), LevelPoint(3, 5, 1)],
+        [LevelPoint(2, 4, 3), LevelPoint(4, 5, 3)],
+        [LevelPoint(5, 5, 5), LevelPoint(0, 6, 5)]
+      ],
+      gridSize: 8,
+      difficulty: 'medium',
+      timeLimit: 220,
+      description: 'Connect matching colors! (Medium)',
     ),
   ];
 
   static final List<FlowLevel> hardLevels = [
     const FlowLevel(
       points: [
-        [LevelPoint(0, 0, 0), LevelPoint(6, 6, 0)], // Red
-        [LevelPoint(0, 6, 1), LevelPoint(6, 0, 1)], // Blue
-        [LevelPoint(3, 0, 2), LevelPoint(3, 6, 2)], // Green
-        [LevelPoint(0, 3, 3), LevelPoint(6, 3, 3)], // Yellow
-        [LevelPoint(2, 2, 4), LevelPoint(4, 4, 4)], // Purple
+        [LevelPoint(6, 0, 0), LevelPoint(3, 2, 0)],
+        [LevelPoint(7, 0, 5), LevelPoint(3, 3, 5)],
+        [LevelPoint(8, 0, 2), LevelPoint(1, 4, 2)],
+        [LevelPoint(1, 1, 1), LevelPoint(0, 8, 1)],
+        [LevelPoint(0, 2, 7), LevelPoint(3, 7, 7)],
+        [LevelPoint(7, 4, 4), LevelPoint(7, 7, 4)],
+        [LevelPoint(4, 5, 6), LevelPoint(6, 7, 6)],
+        [LevelPoint(6, 6, 3), LevelPoint(8, 6, 3)],
+        [LevelPoint(8, 7, 8), LevelPoint(5, 8, 8)]
       ],
-      gridSize: 7,
+      gridSize: 9,
       difficulty: 'hard',
       timeLimit: 240,
-      description: 'Obstacle course',
-      obstacles: [
-        LevelPoint(3, 3, -1),
-        LevelPoint(2, 4, -1),
-        LevelPoint(4, 2, -1),
-      ],
+      description: 'Connect matching colors! (Hard)',
     ),
     const FlowLevel(
       points: [
-        [LevelPoint(0, 0, 0), LevelPoint(5, 5, 0)], // Red
-        [LevelPoint(0, 5, 1), LevelPoint(5, 0, 1)], // Blue
-        [LevelPoint(2, 0, 2), LevelPoint(3, 5, 2)], // Green
-        [LevelPoint(0, 2, 3), LevelPoint(5, 3, 3)], // Yellow
-        [LevelPoint(1, 1, 4), LevelPoint(4, 4, 4)], // Purple
+        [LevelPoint(1, 0, 1), LevelPoint(0, 3, 1)],
+        [LevelPoint(3, 1, 6), LevelPoint(8, 4, 6)],
+        [LevelPoint(6, 2, 5), LevelPoint(1, 5, 5)],
+        [LevelPoint(3, 3, 2), LevelPoint(2, 6, 2)],
+        [LevelPoint(4, 3, 4), LevelPoint(3, 6, 4)],
+        [LevelPoint(8, 3, 3), LevelPoint(8, 5, 3)],
+        [LevelPoint(2, 4, 0), LevelPoint(6, 6, 0)]
       ],
-      gridSize: 6,
+      gridSize: 9,
       difficulty: 'hard',
       timeLimit: 300,
-      description: 'Strategic blocks',
-      obstacles: [
-        LevelPoint(2, 2, -1),
-        LevelPoint(3, 3, -1),
-        LevelPoint(2, 3, -1),
-        LevelPoint(3, 2, -1),
-      ],
+      description: 'Connect matching colors! (Hard)',
     ),
     const FlowLevel(
       points: [
-        [LevelPoint(0, 0, 0), LevelPoint(7, 7, 0)], // Red
-        [LevelPoint(7, 0, 1), LevelPoint(0, 7, 1)], // Blue
-        [LevelPoint(3, 0, 2), LevelPoint(4, 7, 2)], // Green
-        [LevelPoint(0, 3, 3), LevelPoint(7, 4, 3)], // Yellow
-        [LevelPoint(2, 2, 4), LevelPoint(5, 5, 4)], // Purple
-        [LevelPoint(5, 2, 5), LevelPoint(2, 5, 5)], // Orange
+        [LevelPoint(7, 0, 1), LevelPoint(4, 1, 1)],
+        [LevelPoint(2, 1, 3), LevelPoint(7, 5, 3)],
+        [LevelPoint(3, 1, 6), LevelPoint(7, 4, 6)],
+        [LevelPoint(7, 1, 7), LevelPoint(0, 2, 7)],
+        [LevelPoint(2, 2, 8), LevelPoint(5, 4, 8)],
+        [LevelPoint(7, 3, 5), LevelPoint(3, 7, 5)],
+        [LevelPoint(1, 4, 4), LevelPoint(1, 7, 4)],
+        [LevelPoint(2, 4, 0), LevelPoint(5, 5, 0)],
+        [LevelPoint(8, 7, 2), LevelPoint(3, 8, 2)]
       ],
-      gridSize: 8,
+      gridSize: 9,
       difficulty: 'hard',
       timeLimit: 360,
-      description: 'Master challenge',
-      obstacles: [
-        LevelPoint(3, 3, -1),
-        LevelPoint(3, 4, -1),
-        LevelPoint(4, 3, -1),
-        LevelPoint(4, 4, -1),
-        LevelPoint(1, 1, -1),
-        LevelPoint(6, 6, -1),
+      description: 'Connect matching colors! (Hard)',
+    ),
+    const FlowLevel(
+      points: [
+        [LevelPoint(0, 0, 0), LevelPoint(2, 6, 0)],
+        [LevelPoint(5, 0, 1), LevelPoint(9, 0, 1)],
+        [LevelPoint(3, 1, 10), LevelPoint(2, 2, 10)],
+        [LevelPoint(3, 2, 2), LevelPoint(8, 4, 2)],
+        [LevelPoint(1, 3, 5), LevelPoint(9, 6, 5)],
+        [LevelPoint(2, 3, 4), LevelPoint(6, 3, 4)],
+        [LevelPoint(3, 3, 7), LevelPoint(6, 4, 7)],
+        [LevelPoint(1, 4, 9), LevelPoint(6, 8, 9)],
+        [LevelPoint(8, 5, 11), LevelPoint(1, 7, 11)],
+        [LevelPoint(5, 6, 6), LevelPoint(8, 8, 6)],
+        [LevelPoint(0, 7, 3), LevelPoint(1, 9, 3)],
+        [LevelPoint(1, 8, 8), LevelPoint(4, 9, 8)]
       ],
+      gridSize: 10,
+      difficulty: 'hard',
+      timeLimit: 360,
+      description: 'Connect matching colors! (Hard)',
+    ),
+    const FlowLevel(
+      points: [
+        [LevelPoint(7, 0, 7), LevelPoint(7, 5, 7)],
+        [LevelPoint(9, 0, 6), LevelPoint(8, 2, 6)],
+        [LevelPoint(1, 1, 5), LevelPoint(5, 1, 5)],
+        [LevelPoint(2, 1, 1), LevelPoint(3, 6, 1)],
+        [LevelPoint(9, 1, 3), LevelPoint(6, 2, 3)],
+        [LevelPoint(5, 2, 2), LevelPoint(4, 4, 2)],
+        [LevelPoint(8, 3, 0), LevelPoint(1, 8, 0)],
+        [LevelPoint(7, 4, 4), LevelPoint(6, 6, 4)]
+      ],
+      gridSize: 10,
+      difficulty: 'hard',
+      timeLimit: 360,
+      description: 'Connect matching colors! (Hard)',
     ),
   ];
 

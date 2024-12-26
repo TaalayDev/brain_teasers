@@ -803,6 +803,13 @@ class $UserProgressTable extends UserProgress
       requiredDuringInsert: true,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES puzzles (id)'));
+  static const VerificationMeta _levelMeta = const VerificationMeta('level');
+  @override
+  late final GeneratedColumn<int> level = GeneratedColumn<int>(
+      'level', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
   static const VerificationMeta _starsMeta = const VerificationMeta('stars');
   @override
   late final GeneratedColumn<int> stars = GeneratedColumn<int>(
@@ -853,6 +860,7 @@ class $UserProgressTable extends UserProgress
   List<GeneratedColumn> get $columns => [
         id,
         puzzleId,
+        level,
         stars,
         score,
         hintsUsed,
@@ -878,6 +886,10 @@ class $UserProgressTable extends UserProgress
           puzzleId.isAcceptableOrUnknown(data['puzzle_id']!, _puzzleIdMeta));
     } else if (isInserting) {
       context.missing(_puzzleIdMeta);
+    }
+    if (data.containsKey('level')) {
+      context.handle(
+          _levelMeta, level.isAcceptableOrUnknown(data['level']!, _levelMeta));
     }
     if (data.containsKey('stars')) {
       context.handle(
@@ -922,6 +934,8 @@ class $UserProgressTable extends UserProgress
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       puzzleId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}puzzle_id'])!,
+      level: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}level'])!,
       stars: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}stars'])!,
       score: attachedDatabase.typeMapping
@@ -947,6 +961,7 @@ class UserProgressData extends DataClass
     implements Insertable<UserProgressData> {
   final int id;
   final int puzzleId;
+  final int level;
   final int stars;
   final int score;
   final int hintsUsed;
@@ -956,6 +971,7 @@ class UserProgressData extends DataClass
   const UserProgressData(
       {required this.id,
       required this.puzzleId,
+      required this.level,
       required this.stars,
       required this.score,
       required this.hintsUsed,
@@ -967,6 +983,7 @@ class UserProgressData extends DataClass
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['puzzle_id'] = Variable<int>(puzzleId);
+    map['level'] = Variable<int>(level);
     map['stars'] = Variable<int>(stars);
     map['score'] = Variable<int>(score);
     map['hints_used'] = Variable<int>(hintsUsed);
@@ -982,6 +999,7 @@ class UserProgressData extends DataClass
     return UserProgressCompanion(
       id: Value(id),
       puzzleId: Value(puzzleId),
+      level: Value(level),
       stars: Value(stars),
       score: Value(score),
       hintsUsed: Value(hintsUsed),
@@ -999,6 +1017,7 @@ class UserProgressData extends DataClass
     return UserProgressData(
       id: serializer.fromJson<int>(json['id']),
       puzzleId: serializer.fromJson<int>(json['puzzleId']),
+      level: serializer.fromJson<int>(json['level']),
       stars: serializer.fromJson<int>(json['stars']),
       score: serializer.fromJson<int>(json['score']),
       hintsUsed: serializer.fromJson<int>(json['hintsUsed']),
@@ -1013,6 +1032,7 @@ class UserProgressData extends DataClass
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'puzzleId': serializer.toJson<int>(puzzleId),
+      'level': serializer.toJson<int>(level),
       'stars': serializer.toJson<int>(stars),
       'score': serializer.toJson<int>(score),
       'hintsUsed': serializer.toJson<int>(hintsUsed),
@@ -1025,6 +1045,7 @@ class UserProgressData extends DataClass
   UserProgressData copyWith(
           {int? id,
           int? puzzleId,
+          int? level,
           int? stars,
           int? score,
           int? hintsUsed,
@@ -1034,6 +1055,7 @@ class UserProgressData extends DataClass
       UserProgressData(
         id: id ?? this.id,
         puzzleId: puzzleId ?? this.puzzleId,
+        level: level ?? this.level,
         stars: stars ?? this.stars,
         score: score ?? this.score,
         hintsUsed: hintsUsed ?? this.hintsUsed,
@@ -1046,6 +1068,7 @@ class UserProgressData extends DataClass
     return UserProgressData(
       id: data.id.present ? data.id.value : this.id,
       puzzleId: data.puzzleId.present ? data.puzzleId.value : this.puzzleId,
+      level: data.level.present ? data.level.value : this.level,
       stars: data.stars.present ? data.stars.value : this.stars,
       score: data.score.present ? data.score.value : this.score,
       hintsUsed: data.hintsUsed.present ? data.hintsUsed.value : this.hintsUsed,
@@ -1065,6 +1088,7 @@ class UserProgressData extends DataClass
     return (StringBuffer('UserProgressData(')
           ..write('id: $id, ')
           ..write('puzzleId: $puzzleId, ')
+          ..write('level: $level, ')
           ..write('stars: $stars, ')
           ..write('score: $score, ')
           ..write('hintsUsed: $hintsUsed, ')
@@ -1076,7 +1100,7 @@ class UserProgressData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(id, puzzleId, stars, score, hintsUsed,
+  int get hashCode => Object.hash(id, puzzleId, level, stars, score, hintsUsed,
       timeSpentSeconds, lastPlayedAt, isCompleted);
   @override
   bool operator ==(Object other) =>
@@ -1084,6 +1108,7 @@ class UserProgressData extends DataClass
       (other is UserProgressData &&
           other.id == this.id &&
           other.puzzleId == this.puzzleId &&
+          other.level == this.level &&
           other.stars == this.stars &&
           other.score == this.score &&
           other.hintsUsed == this.hintsUsed &&
@@ -1095,6 +1120,7 @@ class UserProgressData extends DataClass
 class UserProgressCompanion extends UpdateCompanion<UserProgressData> {
   final Value<int> id;
   final Value<int> puzzleId;
+  final Value<int> level;
   final Value<int> stars;
   final Value<int> score;
   final Value<int> hintsUsed;
@@ -1104,6 +1130,7 @@ class UserProgressCompanion extends UpdateCompanion<UserProgressData> {
   const UserProgressCompanion({
     this.id = const Value.absent(),
     this.puzzleId = const Value.absent(),
+    this.level = const Value.absent(),
     this.stars = const Value.absent(),
     this.score = const Value.absent(),
     this.hintsUsed = const Value.absent(),
@@ -1114,6 +1141,7 @@ class UserProgressCompanion extends UpdateCompanion<UserProgressData> {
   UserProgressCompanion.insert({
     this.id = const Value.absent(),
     required int puzzleId,
+    this.level = const Value.absent(),
     this.stars = const Value.absent(),
     this.score = const Value.absent(),
     this.hintsUsed = const Value.absent(),
@@ -1124,6 +1152,7 @@ class UserProgressCompanion extends UpdateCompanion<UserProgressData> {
   static Insertable<UserProgressData> custom({
     Expression<int>? id,
     Expression<int>? puzzleId,
+    Expression<int>? level,
     Expression<int>? stars,
     Expression<int>? score,
     Expression<int>? hintsUsed,
@@ -1134,6 +1163,7 @@ class UserProgressCompanion extends UpdateCompanion<UserProgressData> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (puzzleId != null) 'puzzle_id': puzzleId,
+      if (level != null) 'level': level,
       if (stars != null) 'stars': stars,
       if (score != null) 'score': score,
       if (hintsUsed != null) 'hints_used': hintsUsed,
@@ -1146,6 +1176,7 @@ class UserProgressCompanion extends UpdateCompanion<UserProgressData> {
   UserProgressCompanion copyWith(
       {Value<int>? id,
       Value<int>? puzzleId,
+      Value<int>? level,
       Value<int>? stars,
       Value<int>? score,
       Value<int>? hintsUsed,
@@ -1155,6 +1186,7 @@ class UserProgressCompanion extends UpdateCompanion<UserProgressData> {
     return UserProgressCompanion(
       id: id ?? this.id,
       puzzleId: puzzleId ?? this.puzzleId,
+      level: level ?? this.level,
       stars: stars ?? this.stars,
       score: score ?? this.score,
       hintsUsed: hintsUsed ?? this.hintsUsed,
@@ -1172,6 +1204,9 @@ class UserProgressCompanion extends UpdateCompanion<UserProgressData> {
     }
     if (puzzleId.present) {
       map['puzzle_id'] = Variable<int>(puzzleId.value);
+    }
+    if (level.present) {
+      map['level'] = Variable<int>(level.value);
     }
     if (stars.present) {
       map['stars'] = Variable<int>(stars.value);
@@ -1199,6 +1234,7 @@ class UserProgressCompanion extends UpdateCompanion<UserProgressData> {
     return (StringBuffer('UserProgressCompanion(')
           ..write('id: $id, ')
           ..write('puzzleId: $puzzleId, ')
+          ..write('level: $level, ')
           ..write('stars: $stars, ')
           ..write('score: $score, ')
           ..write('hintsUsed: $hintsUsed, ')
@@ -2727,6 +2763,7 @@ typedef $$UserProgressTableCreateCompanionBuilder = UserProgressCompanion
     Function({
   Value<int> id,
   required int puzzleId,
+  Value<int> level,
   Value<int> stars,
   Value<int> score,
   Value<int> hintsUsed,
@@ -2738,6 +2775,7 @@ typedef $$UserProgressTableUpdateCompanionBuilder = UserProgressCompanion
     Function({
   Value<int> id,
   Value<int> puzzleId,
+  Value<int> level,
   Value<int> stars,
   Value<int> score,
   Value<int> hintsUsed,
@@ -2775,6 +2813,9 @@ class $$UserProgressTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get level => $composableBuilder(
+      column: $table.level, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get stars => $composableBuilder(
       column: $table.stars, builder: (column) => ColumnFilters(column));
@@ -2828,6 +2869,9 @@ class $$UserProgressTableOrderingComposer
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get level => $composableBuilder(
+      column: $table.level, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get stars => $composableBuilder(
       column: $table.stars, builder: (column) => ColumnOrderings(column));
 
@@ -2880,6 +2924,9 @@ class $$UserProgressTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get level =>
+      $composableBuilder(column: $table.level, builder: (column) => column);
 
   GeneratedColumn<int> get stars =>
       $composableBuilder(column: $table.stars, builder: (column) => column);
@@ -2945,6 +2992,7 @@ class $$UserProgressTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<int> puzzleId = const Value.absent(),
+            Value<int> level = const Value.absent(),
             Value<int> stars = const Value.absent(),
             Value<int> score = const Value.absent(),
             Value<int> hintsUsed = const Value.absent(),
@@ -2955,6 +3003,7 @@ class $$UserProgressTableTableManager extends RootTableManager<
               UserProgressCompanion(
             id: id,
             puzzleId: puzzleId,
+            level: level,
             stars: stars,
             score: score,
             hintsUsed: hintsUsed,
@@ -2965,6 +3014,7 @@ class $$UserProgressTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
             required int puzzleId,
+            Value<int> level = const Value.absent(),
             Value<int> stars = const Value.absent(),
             Value<int> score = const Value.absent(),
             Value<int> hintsUsed = const Value.absent(),
@@ -2975,6 +3025,7 @@ class $$UserProgressTableTableManager extends RootTableManager<
               UserProgressCompanion.insert(
             id: id,
             puzzleId: puzzleId,
+            level: level,
             stars: stars,
             score: score,
             hintsUsed: hintsUsed,

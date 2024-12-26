@@ -1,14 +1,11 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flame/game.dart';
-import '../theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-import 'dart:math' as math;
-import 'package:flame/components.dart';
-import 'package:flame/collisions.dart';
-import 'package:flame/particles.dart';
+import '../theme/app_theme.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -17,13 +14,24 @@ class SplashScreen extends ConsumerStatefulWidget {
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen> {
-  late final BrainGearsGame _game;
+class _SplashScreenState extends ConsumerState<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _gearController;
+  late final Animation<double> _gearRotation;
 
   @override
   void initState() {
     super.initState();
-    _game = BrainGearsGame();
+    _gearController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat();
+
+    _gearRotation = Tween<double>(
+      begin: 0,
+      end: 2 * math.pi,
+    ).animate(_gearController);
+
     _initializeApp();
   }
 
@@ -35,266 +43,281 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   @override
+  void dispose() {
+    _gearController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final brightness = Theme.of(context).brightness;
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // Flame Game Background
-            Positioned.fill(
-              child: GameWidget(
-                game: _game,
-              ),
-            ),
+      body: Stack(
+        children: [
+          // Animated particles background
+          const ParticlesBackground(),
 
-            // Content Overlay
-            Center(
+          // Main content
+          SafeArea(
+            child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // App Logo
-                  Container(
+                  // Animated gear system
+                  SizedBox(
                     width: size.width * 0.4,
                     height: size.width * 0.4,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryColor.withOpacity(0.3),
-                          blurRadius: 20,
-                          spreadRadius: 5,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Background glow
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withOpacity(0.3),
+                                blurRadius: 30,
+                                spreadRadius: 10,
+                              ),
+                            ],
+                          ),
                         ),
+
+                        // Main gear
+                        AnimatedBuilder(
+                          animation: _gearRotation,
+                          builder: (context, child) => Transform.rotate(
+                            angle: _gearRotation.value,
+                            child: _buildGear(
+                              size: size.width * 0.25,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
+
+                        // Outer gears
+                        ...List.generate(3, (index) {
+                          final angle = (index * 2 * math.pi / 3);
+                          return AnimatedBuilder(
+                            animation: _gearRotation,
+                            builder: (context, child) => Transform(
+                              transform: Matrix4.identity()
+                                ..translate(
+                                  size.width * 0.15 * math.cos(angle),
+                                  size.width * 0.15 * math.sin(angle),
+                                )
+                                ..rotateZ(-_gearRotation.value),
+                              child: _buildGear(
+                                size: size.width * 0.1,
+                                color: AppTheme.secondaryColor,
+                              ),
+                            ),
+                          );
+                        }),
                       ],
-                    ),
-                    child: Icon(
-                      Icons.psychology,
-                      size: size.width * 0.25,
-                      color: Colors.white,
                     ),
                   )
                       .animate()
                       .scale(
-                    duration: AppTheme.mediumAnimation,
-                    curve: Curves.easeOut,
-                  )
-                      .then()
-                      .shimmer(
-                    duration: AppTheme.slowAnimation,
-                    color: Colors.white54,
-                  ),
+                        duration: AppTheme.mediumAnimation,
+                        curve: Curves.easeOut,
+                      )
+                      .fadeIn(),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 48),
 
-                  // App Name
+                  // App name
                   Text(
                     'BrainTeasers',
-                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      color: AppTheme.primaryColor,
+                    style: GoogleFonts.poppins(
+                      fontSize: 36,
                       fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
                     ),
                   )
                       .animate()
                       .fadeIn(
-                    duration: AppTheme.mediumAnimation,
-                    delay: AppTheme.quickAnimation,
-                  )
+                        delay: const Duration(milliseconds: 300),
+                        duration: AppTheme.mediumAnimation,
+                      )
                       .slideY(
-                    begin: 0.2,
-                    duration: AppTheme.mediumAnimation,
-                    curve: Curves.easeOut,
-                  ),
+                        begin: 0.3,
+                        duration: AppTheme.mediumAnimation,
+                        curve: Curves.easeOut,
+                      ),
 
                   const SizedBox(height: 16),
 
                   // Tagline
                   Text(
                     'Train Your Brain, One Puzzle at a Time',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: brightness == Brightness.light
-                          ? Colors.black54
-                          : Colors.white54,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.color
+                          ?.withOpacity(0.7),
                     ),
                   )
                       .animate()
                       .fadeIn(
-                    duration: AppTheme.mediumAnimation,
-                    delay: AppTheme.mediumAnimation,
-                  ),
+                        delay: const Duration(milliseconds: 600),
+                        duration: AppTheme.mediumAnimation,
+                      )
+                      .slideY(
+                        begin: 0.3,
+                        duration: AppTheme.mediumAnimation,
+                        curve: Curves.easeOut,
+                      ),
 
                   const SizedBox(height: 48),
 
-                  // Loading Indicator
-                  const CircularProgressIndicator()
-                      .animate()
-                      .scale(
-                    duration: AppTheme.quickAnimation,
-                    delay: AppTheme.mediumAnimation,
-                  )
-                      .fadeIn(
-                    duration: AppTheme.quickAnimation,
-                    delay: AppTheme.mediumAnimation,
-                  ),
+                  // Loading indicator
+                  const LoadingIndicator().animate().fadeIn(
+                        delay: const Duration(milliseconds: 900),
+                        duration: AppTheme.mediumAnimation,
+                      ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class Gear extends CircleComponent with CollisionCallbacks {
-  final Vector2 velocity;
-  double angularVelocity;
-  final double gearSize;
-
-  Gear({
-    required Vector2 position,
-    required this.gearSize,
-    required this.velocity,
-    required this.angularVelocity,
-  }) : super(
-    position: position,
-    radius: gearSize / 2,
-    anchor: Anchor.center,
-    paint: Paint()
-      ..color = AppTheme.primaryColor.withOpacity(0.8)
-      ..style = PaintingStyle.fill,
-  ) {
-    add(CircleHitbox());
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    position.add(velocity * dt * 60);
-    angle += angularVelocity * dt;
-
-    // Bounce off screen edges
-    final screenSize = findGame()!.size;
-    if (position.x - radius <= 0 || position.x + radius >= screenSize.x) {
-      velocity.x *= -0.8;
-      _addCollisionParticles();
-    }
-    if (position.y - radius <= 0 || position.y + radius >= screenSize.y) {
-      velocity.y *= -0.8;
-      _addCollisionParticles();
-    }
-  }
-
-  @override
-  void onCollision(Set<Vector2> points, PositionComponent other) {
-    if (other is Gear) {
-      final collisionNormal = (other.position - position).normalized();
-      final relativeVelocity = other.velocity - velocity;
-      final velocityAlongNormal = relativeVelocity.dot(collisionNormal);
-
-      // Only resolve if objects are moving towards each other
-      if (velocityAlongNormal > 0) return;
-
-      // Collision response
-      final restitution = 0.8;
-      final impulseScalar = -(1 + restitution) * velocityAlongNormal;
-
-      velocity.sub(collisionNormal * impulseScalar);
-      other.velocity.add(collisionNormal * impulseScalar);
-
-      // Exchange angular velocities
-      final tempAngular = angularVelocity;
-      angularVelocity = other.angularVelocity;
-      other.angularVelocity = tempAngular;
-
-      _addCollisionParticles();
-    }
-  }
-
-  void _addCollisionParticles() {
-    final particleComponent = ParticleSystemComponent(
-      particle: Particle.generate(
-        count: 10,
-        lifespan: 0.5,
-        generator: (i) => AcceleratedParticle(
-          acceleration: Vector2(0, 98.0),
-          speed: Vector2.random() * 100,
-          position: position.clone(),
-          child: CircleParticle(
-            radius: 2,
-            paint: Paint()
-              ..color = AppTheme.accentColor.withOpacity(0.6),
           ),
-        ),
+        ],
       ),
     );
-    findGame()!.add(particleComponent);
   }
-}
 
-class BrainGearsGame extends FlameGame with HasCollisionDetection {
-  late List<Gear> gears;
-  final int numberOfGears;
-
-  BrainGearsGame({this.numberOfGears = 5});
-
-  @override
-  Future<void> onLoad() async {
-    gears = [];
-    final random = math.Random();
-
-    for (int i = 0; i < numberOfGears; i++) {
-      final gear = Gear(
-        position: Vector2(
-          random.nextDouble() * size.x,
-          random.nextDouble() * size.y,
-        ),
-        gearSize: 30 + random.nextDouble() * 20,
-        velocity: Vector2(
-          -50 + random.nextDouble() * 100,
-          -50 + random.nextDouble() * 100,
-        ),
-        angularVelocity: -2 + random.nextDouble() * 4,
-      );
-      add(gear);
-      gears.add(gear);
-    }
-
-    // Add connecting lines component
-    add(
-      CustomConnectingLinesComponent(gears: gears),
+  Widget _buildGear({required double size, required Color color}) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: GearPainter(color: color),
     );
   }
 }
 
-class CustomConnectingLinesComponent extends Component with HasGameRef {
-  final List<Gear> gears;
-  final Paint linePaint;
+class GearPainter extends CustomPainter {
+  final Color color;
 
-  CustomConnectingLinesComponent({required this.gears})
-      : linePaint = Paint()
-    ..color = AppTheme.primaryColor.withOpacity(0.2)
-    ..strokeWidth = 1.0
-    ..style = PaintingStyle.stroke;
+  GearPainter({required this.color});
 
   @override
-  void render(Canvas canvas) {
-    for (int i = 0; i < gears.length; i++) {
-      for (int j = i + 1; j < gears.length; j++) {
-        final distance = gears[i].position.distanceTo(gears[j].position);
-        if (distance < 150) {
-          final opacity = (1 - distance / 150) * 0.5;
-          linePaint.color = AppTheme.primaryColor.withOpacity(opacity);
-          canvas.drawLine(
-            gears[i].position.toOffset(),
-            gears[j].position.toOffset(),
-            linePaint,
-          );
-        }
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    const teethCount = 12;
+    final teethDepth = radius * 0.2;
+    final innerRadius = radius * 0.6;
+
+    final path = Path();
+
+    // Draw teeth
+    for (var i = 0; i < teethCount; i++) {
+      final angle = 2 * math.pi * i / teethCount;
+      final nextAngle = 2 * math.pi * (i + 0.5) / teethCount;
+
+      if (i == 0) {
+        path.moveTo(
+          center.dx + radius * math.cos(angle),
+          center.dy + radius * math.sin(angle),
+        );
       }
+
+      path.lineTo(
+        center.dx +
+            (radius + teethDepth) * math.cos(angle + math.pi / teethCount),
+        center.dy +
+            (radius + teethDepth) * math.sin(angle + math.pi / teethCount),
+      );
+
+      path.lineTo(
+        center.dx + radius * math.cos(nextAngle),
+        center.dy + radius * math.sin(nextAngle),
+      );
     }
+
+    path.close();
+    canvas.drawPath(path, paint);
+
+    // Draw inner circle
+    canvas.drawCircle(center, innerRadius, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class ParticlesBackground extends StatelessWidget {
+  const ParticlesBackground({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          children: List.generate(20, (index) {
+            final random = math.Random();
+            final size = random.nextDouble() * 8 + 4;
+
+            return Positioned(
+              left: random.nextDouble() * constraints.maxWidth,
+              top: random.nextDouble() * constraints.maxHeight,
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.primaryColor.withOpacity(0.2),
+                ),
+              )
+                  .animate(
+                    onPlay: (controller) => controller.repeat(),
+                  )
+                  .shimmer(
+                    delay: Duration(milliseconds: random.nextInt(1000)),
+                    duration: const Duration(seconds: 2),
+                  )
+                  .fadeIn(
+                    delay: Duration(milliseconds: random.nextInt(1000)),
+                    duration: const Duration(milliseconds: 500),
+                  ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
+class LoadingIndicator extends StatelessWidget {
+  const LoadingIndicator({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const CircularProgressIndicator(
+        strokeWidth: 3,
+      ),
+    );
   }
 }

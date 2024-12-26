@@ -6,11 +6,11 @@ import 'dart:math' as math;
 import 'dart:async';
 
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class PendulumPuzzleGame extends Forge2DGame {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   late int targetAngle;
   late Pendulum pendulum;
@@ -24,8 +24,7 @@ class PendulumPuzzleGame extends Forge2DGame {
 
   PendulumPuzzleGame({
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   }) : super(gravity: Vector2(0, 9.8));
 
   @override
@@ -88,7 +87,7 @@ class PendulumPuzzleGame extends Forge2DGame {
   void _handleTimeUp() {
     isGameOver = true;
     gameTimer?.cancel();
-    onComplete();
+    gameController.loseLive();
   }
 
   @override
@@ -115,7 +114,7 @@ class PendulumPuzzleGame extends Forge2DGame {
   void _handleSuccess() {
     isGameOver = true;
     gameTimer?.cancel();
-    onComplete();
+    gameController.completeGame();
   }
 
   void _updateScore() {
@@ -125,7 +124,7 @@ class PendulumPuzzleGame extends Forge2DGame {
     final angleScore = math.max(0, 1000 - (angleDifference * 10).round());
     final timeBonus = remainingTime * 10;
     score = math.max(0, angleScore + timeBonus);
-    onScoreUpdate(score);
+    gameController.updateScore(score);
   }
 
   @override

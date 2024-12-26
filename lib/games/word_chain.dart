@@ -1,20 +1,19 @@
-import 'package:brain_teasers/components/header_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../components/header_container.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class WordChainGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const WordChainGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -73,11 +72,11 @@ class _WordChainGameState extends State<WordChainGame> {
       // Calculate score based on moves and word length
       final moveScore = 100 - (moves * 10);
       score += moveScore > 0 ? moveScore : 10;
-      widget.onScoreUpdate(score);
+      widget.gameController.updateScore(score);
 
       if (newWord == targetWord) {
         isComplete = true;
-        widget.onComplete();
+        widget.gameController.completeGame();
       } else if (moves >= maxMoves) {
         errorMessage = 'Out of moves! Game Over';
       }

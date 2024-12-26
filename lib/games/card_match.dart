@@ -3,23 +3,20 @@ import 'dart:math' as math;
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../components/game_container.dart';
-import '../components/header_container.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class CardMatchGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const CardMatchGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -137,7 +134,7 @@ class _CardMatchGameState extends State<CardMatchGame>
       score += 50;
     }
 
-    widget.onScoreUpdate(score);
+    widget.gameController.updateScore(score);
   }
 
   void _onCardTap(CardData card) {
@@ -174,7 +171,7 @@ class _CardMatchGameState extends State<CardMatchGame>
 
               if (cards.every((card) => card.isMatched)) {
                 gameTimer.cancel();
-                widget.onComplete();
+                widget.gameController.completeGame();
               }
             } else {
               firstCard!.animation.reverse();
@@ -182,7 +179,7 @@ class _CardMatchGameState extends State<CardMatchGame>
               firstCard!.isFlipped = false;
               secondCard!.isFlipped = false;
               score = math.max(0, score - 10);
-              widget.onScoreUpdate(score);
+              widget.gameController.updateScore(score);
 
               // Haptic feedback for mismatch
               HapticFeedback.heavyImpact();

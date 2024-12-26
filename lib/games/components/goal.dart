@@ -9,10 +9,9 @@ class GoalBody extends BodyComponent {
   double _pulseValue = 0.0;
   double _glowValue = 0.0;
   final Vector2 _position;
+  final double radius;
 
-  GoalBody(this._position);
-
-  double get radius => 1.5;
+  GoalBody(this._position, {this.radius = 1});
 
   @override
   Body createBody() {

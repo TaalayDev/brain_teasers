@@ -33,6 +33,7 @@ class Puzzles extends Table {
 class UserProgress extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get puzzleId => integer().references(Puzzles, #id)();
+  IntColumn get level => integer().withDefault(const Constant(1))();
   IntColumn get stars => integer().withDefault(const Constant(0))();
   IntColumn get score => integer().withDefault(const Constant(0))();
   IntColumn get hintsUsed => integer().withDefault(const Constant(0))();
@@ -87,7 +88,7 @@ class AppDatabase extends _$AppDatabase {
 
   static QueryExecutor _openConnection() {
     return driftDatabase(
-      name: 'brain_teasers_15.db',
+      name: 'brain_teasers_17.db',
       web: DriftWebOptions(
         sqlite3Wasm: Uri.parse('sqlite3.wasm'),
         driftWorker: Uri.parse('drift_worker.js'),
@@ -198,9 +199,9 @@ class AppDatabase extends _$AppDatabase {
       (select(puzzles)..where((p) => p.id.equals(id))).getSingle();
 
   // Progress-related queries
-  Future<UserProgressData> getProgressForPuzzle(int puzzleId) =>
+  Future<UserProgressData?> getProgressForPuzzle(int puzzleId) =>
       (select(userProgress)..where((p) => p.puzzleId.equals(puzzleId)))
-          .getSingle();
+          .getSingleOrNull();
 
   Future<int> updateProgress(UserProgressCompanion progress) =>
       into(userProgress).insert(

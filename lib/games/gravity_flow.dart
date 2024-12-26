@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'dart:async';
 
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class LevelConfig {
   final double targetFillLevel;
@@ -37,8 +38,7 @@ class ObstacleTemplate {
 
 class GravityFlowGame extends Forge2DGame with TapDetector {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   late LiquidContainer container;
   late List<LiquidParticle> particles = [];
@@ -108,8 +108,7 @@ class GravityFlowGame extends Forge2DGame with TapDetector {
 
   GravityFlowGame({
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   }) : super(gravity: Vector2(0, 0));
 
   // Helper getters from your code
@@ -522,13 +521,11 @@ class GravityFlowGame extends Forge2DGame with TapDetector {
       }
     }
     fillLevel = particlesInGoal / particles.length;
-    print('Fill level: $fillLevel');
     score = (1000 * fillLevel).round();
-    onScoreUpdate(score);
+    gameController.updateScore(score);
   }
 
   void _checkWinCondition() {
-    print('currentLevel $currentLevel');
     if (fillLevel >= levelConfigs[currentLevel]!.targetFillLevel) {
       if (currentLevel < maxLevels) {
         isGameStarted = false;
@@ -539,7 +536,7 @@ class GravityFlowGame extends Forge2DGame with TapDetector {
       } else {
         // Game complete
         isGameOver = true;
-        onComplete();
+        gameController.completeGame();
       }
     }
   }

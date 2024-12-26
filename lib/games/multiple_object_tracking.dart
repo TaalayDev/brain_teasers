@@ -6,11 +6,11 @@ import 'package:flame_forge2d/flame_forge2d.dart' hide Particle;
 import 'dart:math' as math;
 
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class MultipleObjectTrackingGame extends Forge2DGame {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   late int targetCount;
   late int distractorCount;
@@ -28,8 +28,7 @@ class MultipleObjectTrackingGame extends Forge2DGame {
 
   MultipleObjectTrackingGame({
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   }) : super(zoom: 50, gravity: Vector2.zero());
 
   @override
@@ -182,11 +181,11 @@ class MultipleObjectTrackingGame extends Forge2DGame {
     }
 
     score = (1000 * (correctSelections / targetCount)).round();
-    onScoreUpdate(score);
+    gameController.updateScore(score);
 
     Future.delayed(const Duration(seconds: 1), () {
       if (correctSelections == targetCount) {
-        onComplete();
+        gameController.completeGame();
       } else {
         isGameOver = true;
       }

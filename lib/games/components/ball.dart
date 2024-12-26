@@ -5,10 +5,12 @@ import '../../theme/app_theme.dart';
 
 class BallBody extends BodyComponent {
   final Vector2 startPosition;
+  final double radius;
 
-  BallBody(this.startPosition);
-
-  double get radius => 1;
+  BallBody(
+    this.startPosition, {
+    this.radius = 1,
+  });
 
   @override
   Body createBody() {
@@ -36,8 +38,6 @@ class BallBody extends BodyComponent {
 
   @override
   void render(Canvas canvas) {
-    const radius = 1.0;
-
     // Draw shadow
     canvas.drawCircle(
       const Offset(0.1, 0.1),

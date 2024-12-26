@@ -1,22 +1,21 @@
-import 'package:brain_teasers/components/game_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
+import '../components/game_container.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class VisualSearchGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const VisualSearchGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -148,7 +147,7 @@ class _VisualSearchGameState extends State<VisualSearchGame> {
 
   void _handleTimeUp() {
     _isTimerRunning = false;
-    widget.onComplete();
+    widget.gameController.completeGame();
   }
 
   void _onItemTap(int index) {
@@ -164,7 +163,7 @@ class _VisualSearchGameState extends State<VisualSearchGame> {
       setState(() {
         _foundTargets.add(point);
         _score += 100;
-        widget.onScoreUpdate(_score);
+        widget.gameController.updateScore(_score);
 
         if (_foundTargets.length == _targetCount) {
           _handleLevelComplete();
@@ -173,7 +172,7 @@ class _VisualSearchGameState extends State<VisualSearchGame> {
     } else if (!item.isTarget) {
       setState(() {
         _score = math.max(0, _score - 20);
-        widget.onScoreUpdate(_score);
+        widget.gameController.updateScore(_score);
       });
       _showIncorrectFeedback();
     }
@@ -194,7 +193,7 @@ class _VisualSearchGameState extends State<VisualSearchGame> {
         }
       });
     } else {
-      widget.onComplete();
+      widget.gameController.completeGame();
     }
   }
 

@@ -6,17 +6,16 @@ import 'dart:math' as math;
 import 'dart:async';
 
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class ChangeBlindnessGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const ChangeBlindnessGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -132,7 +131,7 @@ class _ChangeBlindnessGameState extends State<ChangeBlindnessGame> {
   void _handleTimeUp() {
     _isTimerRunning = false;
     _flashTimer?.cancel();
-    widget.onComplete();
+    widget.gameController.completeGame();
   }
 
   void _onTileTap(int x, int y) {
@@ -143,14 +142,14 @@ class _ChangeBlindnessGameState extends State<ChangeBlindnessGame> {
       if (_changedPositions.contains(point) && !_foundChanges.contains(point)) {
         _foundChanges.add(point);
         _score += 100;
-        widget.onScoreUpdate(_score);
+        widget.gameController.updateScore(_score);
 
         if (_foundChanges.length == _changedPositions.length) {
           _handleLevelComplete();
         }
       } else if (!_changedPositions.contains(point)) {
         _score = math.max(0, _score - 20);
-        widget.onScoreUpdate(_score);
+        widget.gameController.updateScore(_score);
         _showIncorrectFeedback();
       }
     });
@@ -172,7 +171,7 @@ class _ChangeBlindnessGameState extends State<ChangeBlindnessGame> {
         }
       });
     } else {
-      widget.onComplete();
+      widget.gameController.completeGame();
     }
   }
 

@@ -6,10 +6,11 @@ import 'package:flame/components.dart' hide Timer;
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
+import 'game_controller.dart';
+
 class ShapeShadowsGame extends World with Game, TapDetector {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   int score = 0;
   int level = 1;
@@ -30,8 +31,7 @@ class ShapeShadowsGame extends World with Game, TapDetector {
 
   ShapeShadowsGame({
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -140,7 +140,7 @@ class ShapeShadowsGame extends World with Game, TapDetector {
   void _handleSuccessfulMatch(ShapeObject shape) {
     successfulMatches++;
     score += 100 * level;
-    onScoreUpdate(score);
+    gameController.updateScore(score);
 
     // Add success effects
     add(MatchEffectComponent(
@@ -157,7 +157,7 @@ class ShapeShadowsGame extends World with Game, TapDetector {
   void _handleFailedMatch(ShapeObject shape) {
     missedShapes++;
     score = max(0, score - 50);
-    onScoreUpdate(score);
+    gameController.updateScore(score);
 
     // Add failure effects
     add(MatchEffectComponent(

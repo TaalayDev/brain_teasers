@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
+import '../utils/pattern_generator.dart';
 import '../components/game_container.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class PatternSequenceGame extends StatefulWidget {
-  final List<List<dynamic>> sequences;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final Map<String, dynamic> gameData;
+  final GameController gameController;
 
   const PatternSequenceGame({
     super.key,
-    required this.sequences,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameData,
+    required this.gameController,
   });
 
   @override
@@ -32,6 +33,9 @@ class _PatternSequenceGameState extends State<PatternSequenceGame> {
   int _currentSequence = 0;
   int _streak = 0;
   bool _isAnimating = false;
+  int _currentLevel = 0;
+  List<LevelData> levels = [];
+  LevelData get currentLevel => levels[_currentLevel];
 
   final List<Color> _backgroundGradients = [
     const Color(0xFF6448FE),
@@ -43,13 +47,25 @@ class _PatternSequenceGameState extends State<PatternSequenceGame> {
   @override
   void initState() {
     super.initState();
+    _currentLevel = widget.gameData['level'] ?? 0;
+    levels = PatternGenerator.generateLevels(
+      startLevel: _currentLevel + 1,
+    );
     _initializeGame();
   }
 
   void _initializeGame() {
-    _sequences = List.from(widget.sequences);
+    _sequences = currentLevel.sequences;
     _selectedAnswers = List.filled(_sequences.length, -1);
     _sequenceCompleted = List.filled(_sequences.length, false);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.gameController.startGame(
+        timeLimit: currentLevel.timeLimit,
+        maxLevels: levels.length,
+        level: _currentLevel,
+      );
+    });
   }
 
   // Game logic methods remain the same...
@@ -70,7 +86,7 @@ class _PatternSequenceGameState extends State<PatternSequenceGame> {
         _sequenceCompleted[_currentSequence] = true;
         _streak++;
         _currentScore += (100 * math.pow(1.1, _streak)).round();
-        widget.onScoreUpdate(_currentScore);
+        widget.gameController.updateScore(_currentScore);
 
         final newSequence = List.from(currentSequence);
         newSequence[missingIndex] = correctAnswer;
@@ -88,13 +104,21 @@ class _PatternSequenceGameState extends State<PatternSequenceGame> {
           if (_isCorrect) {
             if (_currentSequence < _sequences.length - 1) {
               _currentSequence++;
+            } else if (_currentLevel < levels.length - 1) {
+              _currentLevel++;
+              _initializeGame();
+              widget.gameController.nextLevel();
             } else {
-              widget.onComplete();
+              widget.gameController.completeGame();
             }
           }
         });
       }
     });
+  }
+
+  bool _isLevelComplete() {
+    return _currentSequence >= _sequences.length - 1;
   }
 
   int _calculateCorrectAnswer(List<dynamic> sequence) {
@@ -150,7 +174,6 @@ class _PatternSequenceGameState extends State<PatternSequenceGame> {
     return GameContainer(
       child: Column(
         children: [
-          Divider(height: 0, color: Colors.grey.withOpacity(0.3)),
           _buildHeader(),
           Expanded(
             child: Center(
@@ -175,75 +198,81 @@ class _PatternSequenceGameState extends State<PatternSequenceGame> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            offset: const Offset(0, 10),
-            spreadRadius: -10,
-            blurRadius: 10,
-          ),
-        ],
-      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                'Pattern ${_currentSequence + 1}/${_sequences.length}',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+              _buildStatCard(
+                icon: Feather.award,
+                label: 'Score',
+                value: _currentScore.toString(),
+                color: AppTheme.accentColor,
               ),
-              Text(
-                'Find the missing number',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.color
-                      ?.withOpacity(0.7),
-                ),
+              const SizedBox(width: 16),
+              _buildStatCard(
+                icon: Feather.bar_chart_2,
+                label: 'Level',
+                value: (_currentLevel + 1).toString(),
+                color: AppTheme.accentColor,
               ),
             ],
           ),
-          _buildScoreDisplay(),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.rotate_right, color: Colors.white),
+                onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.lightbulb_outline,
+                  color: Colors.white,
+                ),
+                onPressed: () {},
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildScoreDisplay() {
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.primaryColor.withOpacity(0.2),
-        ),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.stars_rounded,
-            color: AppTheme.accentColor,
-            size: 24,
-          ),
+          Icon(icon, color: color),
           const SizedBox(width: 8),
-          Text(
-            _currentScore.toString(),
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: color,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -452,36 +481,30 @@ class _PatternSequenceGameState extends State<PatternSequenceGame> {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               width: 80,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 16,
-              ),
+              height: 80,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppTheme.primaryColor.withOpacity(0.8),
-                    AppTheme.primaryColor.withOpacity(0.6),
+                    Colors.white.withOpacity(0.2),
+                    Colors.white.withOpacity(0.1),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Text(
-                option.toString(),
-                style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
                 ),
-                textAlign: TextAlign.center,
+              ),
+              child: Center(
+                child: Text(
+                  option.toString(),
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
           ),
@@ -494,156 +517,43 @@ class _PatternSequenceGameState extends State<PatternSequenceGame> {
   }
 
   Widget _buildProgress() {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            offset: const Offset(0, -4),
-            blurRadius: 10,
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Level',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '${_currentLevel + 1} / ${levels.length}',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: _currentSequence / _sequences.length,
+              backgroundColor: Colors.white.withOpacity(0.1),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Colors.purple.shade400,
+              ),
+              minHeight: 8,
+            ),
           ),
         ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.local_fire_department_rounded,
-                      color: AppTheme.accentColor,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Streak: $_streak',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  '${_sequenceCompleted.where((e) => e).length}/${_sequences.length} Completed',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Stack(
-              children: [
-                // Background track
-                Container(
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-                // Progress indicator
-                AnimatedFractionallySizedBox(
-                  duration: const Duration(milliseconds: 300),
-                  alignment: Alignment.centerLeft,
-                  widthFactor: _sequenceCompleted.where((e) => e).length /
-                      _sequences.length,
-                  child: Container(
-                    height: 12,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          AppTheme.primaryColor,
-                          AppTheme.accentColor,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryColor.withOpacity(0.3),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Progress markers
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(
-                    _sequences.length,
-                    (index) => Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: _sequenceCompleted[index]
-                            ? AppTheme.accentColor
-                            : Colors.transparent,
-                        border: Border.all(
-                          color: _sequenceCompleted[index]
-                              ? AppTheme.accentColor
-                              : AppTheme.primaryColor.withOpacity(0.3),
-                          width: 2,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                    ).animate(
-                      effects: [
-                        if (_sequenceCompleted[index])
-                          const ScaleEffect(
-                            duration: Duration(milliseconds: 300),
-                            curve: Curves.elasticOut,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (_streak > 0) ...[
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '${_streak}x',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.accentColor,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Combo!',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.color
-                          ?.withOpacity(0.7),
-                    ),
-                  ),
-                ],
-              ).animate().fadeIn().slideY(
-                    begin: 0.5,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                  ),
-            ],
-          ],
-        ),
       ),
     );
   }
@@ -722,4 +632,60 @@ class Particle extends StatelessWidget {
           ),
     );
   }
+}
+
+class Levels {
+  static const List<LevelData> list = [
+    LevelData(
+      sequences: [
+        [1, 3, 5, 7, 9, null],
+        [2, 4, 8, 16, 32, null],
+        [3, 6, 12, 24, 48, null],
+        [5, 10, 20, 40, 80, null],
+        [1, 4, 9, 16, 25, null],
+      ],
+      hints: [
+        'Add 2 to the previous number',
+        'Double the previous number',
+        'Multiply the previous number by 2',
+        'Double the previous number',
+        'Square the previous number',
+      ],
+      timeLimit: 60,
+    ),
+    LevelData(
+      sequences: [
+        [1, 1, 2, 3, 5, 8, null],
+        [1, 2, 3, 5, 8, 13, null],
+        [2, 4, 8, 16, 32, 64, null],
+        [1, 3, 6, 10, 15, 21, null],
+        [1, 2, 4, 8, 16, 32, null],
+      ],
+      hints: [
+        'Add the previous two numbers',
+        'Add the previous two numbers',
+        'Double the previous number',
+        'Add the previous number',
+        'Double the previous number',
+      ],
+      timeLimit: 60,
+    ),
+    LevelData(
+      sequences: [
+        [1, 2, 4, 8, 16, 32, null],
+        [1, 3, 9, 27, 81, 243, null],
+        [2, 4, 8, 16, 32, 64, null],
+        [1, 4, 16, 64, 256, 1024, null],
+        [1, 5, 25, 125, 625, 3125, null],
+      ],
+      hints: [
+        'Double the previous number',
+        'Triple the previous number',
+        'Double the previous number',
+        'Square the previous number',
+        'Multiply the previous number by 5',
+      ],
+      timeLimit: 60,
+    ),
+  ];
 }

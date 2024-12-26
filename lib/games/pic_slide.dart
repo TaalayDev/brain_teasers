@@ -1,27 +1,25 @@
 import 'dart:async';
 
-import 'package:brain_teasers/components/game_container.dart';
-import 'package:brain_teasers/components/header_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import '../components/game_container.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class PicSlideGame extends StatefulWidget {
   final Image image;
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const PicSlideGame({
     super.key,
     required this.gameData,
     required this.image,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -180,7 +178,7 @@ class _PicSlideGameState extends State<PicSlideGame> {
       if (incrementMoves) {
         moves++;
         score = math.max(0, 1000 - moves * 10);
-        widget.onScoreUpdate(score);
+        widget.gameController.updateScore(score);
       }
     });
 
@@ -194,7 +192,7 @@ class _PicSlideGameState extends State<PicSlideGame> {
       setState(() {
         this.isComplete = true;
       });
-      widget.onComplete();
+      widget.gameController.completeGame();
     }
   }
 
@@ -368,6 +366,13 @@ class _PicSlideGameState extends State<PicSlideGame> {
                     fontSize: 40,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                 ),
               ),

@@ -3,17 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../components/game_container.dart';
+import 'game_controller.dart';
 
 class SymbolSequenceGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const SymbolSequenceGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -80,7 +79,7 @@ class _SymbolSequenceGameState extends State<SymbolSequenceGame>
     score += baseScore + streakBonus;
 
     _controller.forward().then((_) => _controller.reverse());
-    widget.onScoreUpdate(score);
+    widget.gameController.updateScore(score);
 
     Future.delayed(const Duration(milliseconds: 1000), () {
       if (!mounted) return;
@@ -89,7 +88,7 @@ class _SymbolSequenceGameState extends State<SymbolSequenceGame>
         if (currentSequence < sequences.length - 1) {
           currentSequence++;
         } else {
-          widget.onComplete();
+          widget.gameController.completeGame();
         }
       });
     });

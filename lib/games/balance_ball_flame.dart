@@ -13,6 +13,7 @@ import 'components/ball.dart';
 import 'components/collectible_star.dart';
 import 'components/goal.dart';
 import 'components/wall.dart';
+import 'game_controller.dart';
 
 class _QueryCallback implements QueryCallback {
   final bool Function(Fixture fixture) _reportFixture;
@@ -27,8 +28,7 @@ class _QueryCallback implements QueryCallback {
 
 class BalanceBallGame extends Forge2DGame {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   late BallBody ball;
   late GoalBody goal;
@@ -59,8 +59,7 @@ class BalanceBallGame extends Forge2DGame {
 
   BalanceBallGame({
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   }) : super();
 
   @override
@@ -94,7 +93,7 @@ class BalanceBallGame extends Forge2DGame {
     if (!isGameOver) {
       time++;
       score = (1000 - time * 10).clamp(0, 1000);
-      onScoreUpdate(score);
+      gameController.updateScore(score);
     }
   }
 
@@ -375,7 +374,7 @@ class BalanceBallGame extends Forge2DGame {
           ball.radius + collectible.radius) {
         collectiblesGathered++;
         score += 100;
-        onScoreUpdate(score);
+        gameController.updateScore(score);
         collectible.removeFromParent();
         _showCollectEffect(collectible.position);
         return true;
@@ -443,7 +442,7 @@ class BalanceBallGame extends Forge2DGame {
     _addVictoryParticles();
 
     Future.delayed(const Duration(milliseconds: 1500), () {
-      onComplete();
+      gameController.completeGame();
     });
   }
 

@@ -7,17 +7,16 @@ import 'package:google_fonts/google_fonts.dart';
 import '../components/game_container.dart';
 import '../components/particle_system.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class PatternRecallGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const PatternRecallGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -212,7 +211,7 @@ class _PatternRecallGameState extends State<PatternRecallGame>
     final timeBonus = timeRemaining * 10;
 
     score += levelBonus + comboBonus + timeBonus;
-    widget.onScoreUpdate(score);
+    widget.gameController.updateScore(score);
 
     level++;
     _showFeedback(true);
@@ -225,7 +224,7 @@ class _PatternRecallGameState extends State<PatternRecallGame>
 
   void _handleGameOver() {
     _gameTimer?.cancel();
-    widget.onComplete();
+    widget.gameController.completeGame();
   }
 
   void _showFeedback(bool success) {

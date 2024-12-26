@@ -1,22 +1,20 @@
-import 'package:brain_teasers/components/game_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
-import '../components/header_container.dart';
+import '../components/game_container.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class EquationBuilderGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const EquationBuilderGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -107,8 +105,8 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
         if (result == targetNumber) {
           isComplete = true;
           score = _calculateScore();
-          widget.onScoreUpdate(score);
-          widget.onComplete();
+          widget.gameController.updateScore(score);
+          widget.gameController.completeGame();
           errorMessage = null;
         } else {
           errorMessage = 'Current result: $result (Target: $targetNumber)';

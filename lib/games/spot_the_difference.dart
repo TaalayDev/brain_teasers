@@ -1,21 +1,20 @@
-import 'package:brain_teasers/components/game_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
+import '../components/game_container.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class SpotDifferenceGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const SpotDifferenceGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -109,7 +108,7 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
 
   void _handleTimeUp() {
     _isTimerRunning = false;
-    widget.onComplete();
+    widget.gameController.completeGame();
   }
 
   void _checkTile(int x, int y, bool isLeftGrid) {
@@ -123,7 +122,7 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
         _foundDifferences.add(key);
         _score +=
             (100 * (_remainingTime / widget.gameData['timeLimit'])).round();
-        widget.onScoreUpdate(_score);
+        widget.gameController.updateScore(_score);
 
         if (_foundDifferences.length == _differences) {
           _handleLevelComplete();
@@ -133,7 +132,7 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
       // Penalty for wrong guess
       setState(() {
         _score = math.max(0, _score - 10);
-        widget.onScoreUpdate(_score);
+        widget.gameController.updateScore(_score);
       });
       _showFeedback(false);
     }
@@ -153,7 +152,7 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
       });
     } else {
       _isTimerRunning = false;
-      widget.onComplete();
+      widget.gameController.completeGame();
     }
   }
 

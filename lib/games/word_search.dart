@@ -5,17 +5,16 @@ import 'dart:math' as math;
 
 import '../components/header_container.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class WordSearchGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const WordSearchGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -164,11 +163,11 @@ class _WordSearchGameState extends State<WordSearchGame> {
           color: _getRandomColor(),
         ));
         score += word.length * 100;
-        widget.onScoreUpdate(score);
+        widget.gameController.updateScore(score);
       });
 
       if (foundWords.length == wordsToFind.length) {
-        widget.onComplete();
+        widget.gameController.completeGame();
       }
     }
 

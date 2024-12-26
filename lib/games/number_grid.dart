@@ -5,17 +5,16 @@ import 'dart:math' as math;
 
 import '../components/header_container.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class NumberGridGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const NumberGridGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -163,8 +162,9 @@ class _NumberGridGameState extends State<NumberGridGame> {
         isComplete = true;
         score = 1000 - (moves * 10);
         if (score < 0) score = 0;
-        widget.onScoreUpdate(score);
-        widget.onComplete();
+
+        widget.gameController.updateScore(score);
+        widget.gameController.completeGame();
       });
     }
   }

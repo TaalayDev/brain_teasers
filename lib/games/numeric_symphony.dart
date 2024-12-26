@@ -4,17 +4,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class NumericSymphonyGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const NumericSymphonyGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -64,14 +63,14 @@ class _NumericSymphonyGameState extends State<NumericSymphonyGame> {
     streak++;
 
     // Calculate score bonus based on streak and attempts
-    final baseScore = 100;
+    const baseScore = 100;
     final streakBonus = streak * 20;
     final attemptsDeduction = (attempts - 1) * 10;
     final sequenceScore =
         math.max(0, baseScore + streakBonus - attemptsDeduction);
 
     score += sequenceScore;
-    widget.onScoreUpdate(score);
+    widget.gameController.updateScore(score);
 
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
@@ -81,7 +80,7 @@ class _NumericSymphonyGameState extends State<NumericSymphonyGame> {
         if (currentSequence < sequences.length - 1) {
           currentSequence++;
         } else {
-          widget.onComplete();
+          widget.gameController.nextLevel();
         }
       });
     });

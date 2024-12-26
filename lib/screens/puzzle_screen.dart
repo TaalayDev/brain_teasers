@@ -1,22 +1,19 @@
-import 'package:brain_teasers/components/game_container.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flame/game.dart' show FlameGame, GameWidget;
 import 'dart:convert';
 
+import '../games/game_controller.dart';
 import '../games/balance_ball_flame.dart';
 import '../games/card_match.dart' show CardMatchGame;
-import '../games/chain_reaction.dart';
 import '../games/change_blindness.dart';
 import '../games/equation_builder.dart';
 import '../games/flow_connection.dart';
 import '../games/gravity_flow.dart';
 import '../games/pendulum_puzzle.dart';
 import '../games/pic_slide.dart';
-import '../games/logic_gates.dart';
 import '../games/multiple_object_tracking.dart';
 import '../games/number_grid.dart';
 import '../games/numeric_symphony.dart';
@@ -32,20 +29,31 @@ import '../games/word_search.dart';
 import '../providers/common.dart';
 import '../theme/app_theme.dart';
 import '../db/database.dart';
-import 'package:brain_teasers/games/bridge_builder.dart';
-import 'package:brain_teasers/games/circuit_flow.dart';
-import 'package:brain_teasers/games/circuit_path.dart';
-import 'package:brain_teasers/games/color_harmony.dart';
+import '../components/game_container.dart';
+import '../games/circuit_flow.dart';
+import '../games/color_harmony.dart';
+
+typedef PuzzleRec = ({
+  Puzzle puzzle,
+  UserProgressData? progress,
+});
 
 // Providers
-final puzzleProvider = FutureProvider.family<Puzzle, String>((ref, id) async {
-  final database = ref.watch(databaseProvider);
-  return database.getPuzzleById(int.parse(id));
+final puzzleProvider =
+    FutureProvider.family<PuzzleRec, String>((ref, id) async {
+  final database = ref.read(databaseProvider);
+  final puzzle = await database.getPuzzleById(int.parse(id));
+  final progress = await ref.read(puzzleProgressProvider(id).future);
+
+  return (
+    puzzle: puzzle,
+    progress: progress,
+  );
 });
 
 final puzzleProgressProvider =
-    FutureProvider.family<UserProgressData?, String>((ref, id) async {
-  final database = ref.watch(databaseProvider);
+    FutureProvider.family<UserProgressData?, String>((ref, id) {
+  final database = ref.read(databaseProvider);
   return database.getProgressForPuzzle(int.parse(id));
 });
 
@@ -62,58 +70,72 @@ class PuzzleScreen extends ConsumerStatefulWidget {
 }
 
 class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
-  late final ValueNotifier<int> _score;
-  late final ValueNotifier<int> _timeSpent;
-  late final ValueNotifier<bool> _isPaused;
-  late final ValueNotifier<bool> _isComplete;
+  late GameController _gameController;
 
   @override
   void initState() {
     super.initState();
-    _score = ValueNotifier(0);
-    _timeSpent = ValueNotifier(0);
-    _isPaused = ValueNotifier(false);
-    _isComplete = ValueNotifier(false);
-    _startTimer();
   }
 
-  void _startTimer() {
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!_isPaused.value && !_isComplete.value && mounted) {
-        _timeSpent.value++;
-        _startTimer();
-      }
-    });
+  void _updateProgress() {
+    final isCompete = _gameController.isComplete;
+    final timeSpent = _gameController.timeSpent;
+    final score = _gameController.score;
+    final level = _gameController.currentLevel;
+
+    final database = ref.read(databaseProvider);
+    database.updateProgress(
+      UserProgressCompanion.insert(
+        puzzleId: int.parse(widget.puzzleId),
+        score: Value(score),
+        timeSpentSeconds: Value(timeSpent),
+        isCompleted: Value(isCompete),
+        level: Value(level),
+        lastPlayedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _score.dispose();
-    _timeSpent.dispose();
-    _isPaused.dispose();
-    _isComplete.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    _gameController = ref.watch(gameControllerProvider(
+      GameControllerParams(
+        onScoreUpdate: (score) {
+          _updateProgress();
+        },
+        onComplete: () {
+          _updateProgress();
+        },
+        onLevelComplete: (level) {
+          _updateProgress();
+        },
+        onStateChange: (state) {},
+      ),
+    ));
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Consumer(
           builder: (context, ref, child) {
             final puzzleAsync = ref.watch(puzzleProvider(widget.puzzleId));
-            final progressAsync =
-                ref.watch(puzzleProgressProvider(widget.puzzleId));
 
             return puzzleAsync.when(
-              data: (puzzle) => _buildPuzzleContent(
+              data: (rec) => _buildPuzzleContent(
                 context,
-                puzzle,
-                progressAsync,
+                rec.puzzle,
+                rec.progress,
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stack) => _buildErrorState(context, error),
+              error: (error, stack) => _buildErrorState(
+                context,
+                error,
+                stack,
+              ),
             );
           },
         ),
@@ -124,7 +146,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
   Widget _buildPuzzleContent(
     BuildContext context,
     Puzzle puzzle,
-    AsyncValue<UserProgressData?> progressAsync,
+    UserProgressData? progress,
   ) {
     return Stack(
       children: [
@@ -133,28 +155,22 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
           children: [
             _buildTopBar(context, puzzle),
             Expanded(
-              child: _buildPuzzleGame(context, puzzle),
+              child: _buildPuzzleGame(context, puzzle, progress),
             ),
           ],
         ),
 
         // Pause overlay
-        ValueListenableBuilder<bool>(
-          valueListenable: _isPaused,
-          builder: (context, isPaused, child) {
-            if (!isPaused) return const SizedBox.shrink();
-            return _buildPauseOverlay(context);
-          },
-        ),
+        if (!_gameController.isPaused)
+          const SizedBox.shrink()
+        else
+          _buildPauseOverlay(context),
 
         // Completion overlay
-        ValueListenableBuilder<bool>(
-          valueListenable: _isComplete,
-          builder: (context, isComplete, child) {
-            if (!isComplete) return const SizedBox.shrink();
-            return _buildCompletionOverlay(context);
-          },
-        ),
+        if (!_gameController.isComplete)
+          const SizedBox.shrink()
+        else
+          _buildCompletionOverlay(context),
       ],
     );
   }
@@ -202,7 +218,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
             ),
           ),
           TextButton.icon(
-            onPressed: () => _isPaused.value = true,
+            onPressed: _gameController.pauseGame,
             icon: const Icon(Icons.pause),
             label: const Text('Pause'),
             style: TextButton.styleFrom(
@@ -223,8 +239,13 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
     );
   }
 
-  Widget _buildPuzzleGame(BuildContext context, Puzzle puzzle) {
+  Widget _buildPuzzleGame(
+    BuildContext context,
+    Puzzle puzzle,
+    UserProgressData? progress,
+  ) {
     final gameData = jsonDecode(puzzle.gameData);
+    gameData['level'] = progress?.level;
 
     switch (gameData['type']) {
       case 'pattern_sequence':
@@ -246,23 +267,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
           backgroundBuilder: (context) => const GameContainer(),
           game: GravityFlowGame(
             gameData: gameData,
-            onScoreUpdate: (score) {
-              _score.value = score;
-            },
-            onComplete: () {
-              _isComplete.value = true;
-
-              final database = ref.read(databaseProvider);
-              database.updateProgress(
-                UserProgressCompanion.insert(
-                  puzzleId: int.parse(widget.puzzleId),
-                  score: Value(_score.value),
-                  timeSpentSeconds: Value(_timeSpent.value),
-                  isCompleted: const Value(true),
-                  lastPlayedAt: Value(DateTime.now()),
-                ),
-              );
-            },
+            gameController: _gameController,
           ),
         );
       case 'pendulum_puzzle':
@@ -270,22 +275,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
           backgroundBuilder: (context) => const GameContainer(),
           game: PendulumPuzzleGame(
             gameData: gameData,
-            onScoreUpdate: (score) {
-              _score.value = score;
-            },
-            onComplete: () {
-              _isComplete.value = true;
-              final database = ref.read(databaseProvider);
-              database.updateProgress(
-                UserProgressCompanion.insert(
-                  puzzleId: int.parse(widget.puzzleId),
-                  score: Value(_score.value),
-                  timeSpentSeconds: Value(_timeSpent.value),
-                  isCompleted: const Value(true),
-                  lastPlayedAt: Value(DateTime.now()),
-                ),
-              );
-            },
+            gameController: _gameController,
           ),
         );
       case 'word_chain':
@@ -294,24 +284,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
             'start': gameData['start'],
             'end': gameData['end'],
           },
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(0),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
       case 'equation_builder':
         return EquationBuilderGame(
@@ -319,271 +292,75 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
             'numbers': gameData['numbers'],
             'target': gameData['target'],
           },
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(0),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
       case 'circuit_flow':
         return CircuitFlowGame(
           gameData: gameData,
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(0),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
       case 'numeric_symphony':
         return NumericSymphonyGame(
           gameData: gameData,
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(0),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
       case 'symbol_sequence':
         return SymbolSequenceGame(
           gameData: gameData,
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(1),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
       case 'color_harmony':
         return ColorHarmonyGame(
           gameData: gameData,
-          onScoreUpdate: (score) {},
-          onComplete: () {},
+          gameController: _gameController,
         );
       case 'shape_shadows':
         return GameWidget(
-            game: FlameGame(
-          world: ShapeShadowsGame(
-            gameData: gameData,
-            onScoreUpdate: (score) {
-              _score.value = score;
-            },
-            onComplete: () {
-              _isComplete.value = true;
-              // Save progress
-              final database = ref.read(databaseProvider);
-              database.updateProgress(
-                UserProgressCompanion.insert(
-                  puzzleId: int.parse(widget.puzzleId),
-                  score: Value(_score.value),
-                  timeSpentSeconds: Value(_timeSpent.value),
-                  isCompleted: const Value(true),
-                  lastPlayedAt: Value(DateTime.now()),
-                  hintsUsed: const Value(0),
-                ),
-              );
-            },
+          game: FlameGame(
+            world: ShapeShadowsGame(
+              gameData: gameData,
+              gameController: _gameController,
+            ),
           ),
-        ));
+        );
       case 'pattern_mirror':
         return PatternMirrorGame(
           gameData: gameData,
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(0),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
       case 'spot_difference':
         return SpotDifferenceGame(
           gameData: gameData,
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(0),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
       case 'change_blindness':
         return ChangeBlindnessGame(
           gameData: gameData,
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(0),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
       case 'visual_search':
         return VisualSearchGame(
           gameData: gameData,
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(0),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
       case 'object_tracking':
         return GameWidget(
           backgroundBuilder: (context) => const GameContainer(),
           game: MultipleObjectTrackingGame(
             gameData: gameData,
-            onScoreUpdate: (score) {
-              _score.value = score;
-            },
-            onComplete: () {
-              _isComplete.value = true;
-              final database = ref.read(databaseProvider);
-              database.updateProgress(
-                UserProgressCompanion.insert(
-                  puzzleId: int.parse(widget.puzzleId),
-                  score: Value(_score.value),
-                  timeSpentSeconds: Value(_timeSpent.value),
-                  isCompleted: const Value(true),
-                  lastPlayedAt: Value(DateTime.now()),
-                  hintsUsed: const Value(0),
-                ),
-              );
-            },
+            gameController: _gameController,
           ),
         );
-      case 'circuit_path':
+      case 'flow_connect':
         return FlowConnectGame(
           gameData: gameData,
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(0),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
-      case 'pic_slide':
+      case 'pic_slider':
         return PicSlideGame(
           gameData: gameData,
           image: Image.asset('assets/images/cat.jpg'),
-          onScoreUpdate: (score) {
-            _score.value = score;
-          },
-          onComplete: () {
-            _isComplete.value = true;
-            final database = ref.read(databaseProvider);
-            database.updateProgress(
-              UserProgressCompanion.insert(
-                puzzleId: int.parse(widget.puzzleId),
-                score: Value(_score.value),
-                timeSpentSeconds: Value(_timeSpent.value),
-                isCompleted: const Value(true),
-                lastPlayedAt: Value(DateTime.now()),
-                hintsUsed: const Value(0),
-              ),
-            );
-          },
+          gameController: _gameController,
         );
       default:
         return Center(
@@ -617,7 +394,9 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () => _isPaused.value = false,
+                  onPressed: () {
+                    _gameController.resumeGame();
+                  },
                   child: const Text('Resume'),
                 ),
                 const SizedBox(height: 8),
@@ -658,12 +437,9 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ValueListenableBuilder<int>(
-                  valueListenable: _score,
-                  builder: (context, score, child) => Text(
-                    'Score: $score',
-                    style: GoogleFonts.poppins(fontSize: 18),
-                  ),
+                Text(
+                  'Score: ${_gameController.score}',
+                  style: GoogleFonts.poppins(fontSize: 18),
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -672,10 +448,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
                     ElevatedButton(
                       onPressed: () {
                         // Reset and replay
-                        _score.value = 0;
-                        _timeSpent.value = 0;
-                        _isComplete.value = false;
-                        _startTimer();
+                        _gameController.restartGame();
                       },
                       child: const Text('Play Again'),
                     ),
@@ -694,7 +467,11 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
     );
   }
 
-  Widget _buildErrorState(BuildContext context, Object error) {
+  Widget _buildErrorState(
+    BuildContext context,
+    Object error,
+    StackTrace stack,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -718,6 +495,12 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
             style: GoogleFonts.poppins(fontSize: 16),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 8),
+          Text(
+            stack.toString(),
+            style: GoogleFonts.poppins(fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
@@ -733,26 +516,9 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
     BuildContext context,
     Map<String, dynamic> gameData,
   ) {
-    // Implementation for pattern sequence puzzle
     return PatternSequenceGame(
-      sequences: List<List<dynamic>>.from(gameData['sequences']),
-      onScoreUpdate: (score) {
-        _score.value = score;
-      },
-      onComplete: () {
-        _isComplete.value = true;
-        // Save progress to database
-        final database = ref.read(databaseProvider);
-        database.updateProgress(
-          UserProgressCompanion.insert(
-            puzzleId: int.parse(widget.puzzleId),
-            score: Value(_score.value),
-            timeSpentSeconds: Value(_timeSpent.value),
-            isCompleted: const Value(true),
-            lastPlayedAt: Value(DateTime.now()),
-          ),
-        );
-      },
+      gameData: gameData,
+      gameController: _gameController,
     );
   }
 
@@ -760,14 +526,9 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
     return GameWidget(
       game: GravityFlowGame(
         gameData: {
-          'gravity': 91.81, // Adjust gravity strength
+          'gravity': 91.81,
         },
-        onScoreUpdate: (score) {
-          _score.value = score;
-        },
-        onComplete: () {
-          _isComplete.value = true;
-        },
+        gameController: _gameController,
       ),
     );
   }
@@ -775,23 +536,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
   Widget _buildCardMatch(BuildContext context, Map<String, dynamic> gameData) {
     return CardMatchGame(
       gameData: gameData,
-      onScoreUpdate: (score) {
-        _score.value = score;
-      },
-      onComplete: () {
-        _isComplete.value = true;
-        // Save progress to database
-        final database = ref.read(databaseProvider);
-        database.updateProgress(
-          UserProgressCompanion.insert(
-            puzzleId: int.parse(widget.puzzleId),
-            score: Value(_score.value),
-            timeSpentSeconds: Value(_timeSpent.value),
-            isCompleted: const Value(true),
-            lastPlayedAt: Value(DateTime.now()),
-          ),
-        );
-      },
+      gameController: _gameController,
     );
   }
 
@@ -801,23 +546,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
   ) {
     return PatternRecallGame(
       gameData: gameData,
-      onScoreUpdate: (score) {
-        _score.value = score;
-      },
-      onComplete: () {
-        _isComplete.value = true;
-        // Save progress to database
-        final database = ref.read(databaseProvider);
-        database.updateProgress(
-          UserProgressCompanion.insert(
-            puzzleId: int.parse(widget.puzzleId),
-            score: Value(_score.value),
-            timeSpentSeconds: Value(_timeSpent.value),
-            isCompleted: const Value(true),
-            lastPlayedAt: Value(DateTime.now()),
-          ),
-        );
-      },
+      gameController: _gameController,
     );
   }
 
@@ -825,47 +554,11 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
     BuildContext context,
     Map<String, dynamic> gameData,
   ) {
-    // return BalanceBallGame(
-    //   gameData: gameData,
-    //   onScoreUpdate: (score) {
-    //     _score.value = score;
-    //   },
-    //   onComplete: () {
-    //     _isComplete.value = true;
-    //     // Save progress to database
-    //     final database = ref.read(databaseProvider);
-    //     database.updateProgress(
-    //       UserProgressCompanion.insert(
-    //         puzzleId: int.parse(widget.puzzleId),
-    //         score: Value(_score.value),
-    //         timeSpentSeconds: Value(_timeSpent.value),
-    //         isCompleted: const Value(true),
-    //         lastPlayedAt: Value(DateTime.now()),
-    //       ),
-    //     );
-    //   },
-    // );
     return GameWidget(
       backgroundBuilder: (context) => const GameContainer(),
       game: BalanceBallGame(
         gameData: gameData,
-        onScoreUpdate: (score) {
-          //_score.value = score;
-        },
-        onComplete: () {
-          _isComplete.value = true;
-          // Save progress to database
-          final database = ref.read(databaseProvider);
-          database.updateProgress(
-            UserProgressCompanion.insert(
-              puzzleId: int.parse(widget.puzzleId),
-              score: Value(_score.value),
-              timeSpentSeconds: Value(_timeSpent.value),
-              isCompleted: const Value(true),
-              lastPlayedAt: Value(DateTime.now()),
-            ),
-          );
-        },
+        gameController: _gameController,
       ),
     );
   }
@@ -876,22 +569,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
         'gridSize': gameData['gridSize'],
         'words': gameData['words'],
       },
-      onScoreUpdate: (score) {
-        _score.value = score;
-      },
-      onComplete: () {
-        _isComplete.value = true;
-        final database = ref.read(databaseProvider);
-        database.updateProgress(
-          UserProgressCompanion.insert(
-            puzzleId: int.parse(widget.puzzleId),
-            score: Value(_score.value),
-            timeSpentSeconds: Value(_timeSpent.value),
-            isCompleted: const Value(true),
-            lastPlayedAt: Value(DateTime.now()),
-          ),
-        );
-      },
+      gameController: _gameController,
     );
   }
 
@@ -901,13 +579,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
         'gridSize': gameData['gridSize'],
         'target': gameData['target'],
       },
-      onScoreUpdate: (score) {
-        _score.value = score;
-      },
-      onComplete: () {
-        _isComplete.value = true;
-        // Save progress...
-      },
+      gameController: _gameController,
     );
   }
 

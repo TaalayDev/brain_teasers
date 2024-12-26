@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 enum TileType {
   straight, // ║
@@ -68,14 +69,12 @@ enum Direction {
 
 class CircuitFlowGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const CircuitFlowGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -250,8 +249,8 @@ class _CircuitFlowGameState extends State<CircuitFlowGame> {
       setState(() {
         isComplete = true;
         score = _calculateScore();
-        widget.onScoreUpdate(score);
-        widget.onComplete();
+        widget.gameController.updateScore(score);
+        widget.gameController.completeGame();
       });
     }
   }

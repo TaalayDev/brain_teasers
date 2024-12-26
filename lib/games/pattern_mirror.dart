@@ -1,20 +1,19 @@
-import 'package:brain_teasers/components/game_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../components/game_container.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 class PatternMirrorGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const PatternMirrorGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -80,7 +79,7 @@ class _PatternMirrorGameState extends State<PatternMirrorGame> {
 
   void _handleTimeUp() {
     _isTimerRunning = false;
-    widget.onComplete();
+    widget.gameController.completeGame();
   }
 
   void _onTileTap(int row, int col) {
@@ -134,7 +133,7 @@ class _PatternMirrorGameState extends State<PatternMirrorGame> {
 
     if (isCorrect) {
       _score += (100 * (_remainingTime / widget.gameData['timeLimit'])).round();
-      widget.onScoreUpdate(_score);
+      widget.gameController.updateScore(_score);
 
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
@@ -146,7 +145,7 @@ class _PatternMirrorGameState extends State<PatternMirrorGame> {
               _playerPattern = List.from(_patterns[_currentLevel]);
             } else {
               _isTimerRunning = false;
-              widget.onComplete();
+              widget.gameController.completeGame();
             }
           });
         }

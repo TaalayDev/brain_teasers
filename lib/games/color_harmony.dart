@@ -1,11 +1,12 @@
-import 'package:brain_teasers/components/game_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
+import '../components/game_container.dart';
 import '../components/color_wheel.dart';
 import '../theme/app_theme.dart';
+import 'game_controller.dart';
 
 enum ColorRule {
   complementary,
@@ -27,14 +28,12 @@ class ColorPattern {
 
 class ColorHarmonyGame extends StatefulWidget {
   final Map<String, dynamic> gameData;
-  final Function(int score) onScoreUpdate;
-  final VoidCallback onComplete;
+  final GameController gameController;
 
   const ColorHarmonyGame({
     super.key,
     required this.gameData,
-    required this.onScoreUpdate,
-    required this.onComplete,
+    required this.gameController,
   });
 
   @override
@@ -156,7 +155,7 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
     final patternScore =
         math.max(0, baseScore + streakBonus + timeBonus - attemptsDeduction);
     score += patternScore;
-    widget.onScoreUpdate(score);
+    widget.gameController.updateScore(score);
 
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
@@ -167,7 +166,7 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
         if (currentPattern < patterns.length - 1) {
           currentPattern++;
         } else {
-          widget.onComplete();
+          widget.gameController.completeGame();
         }
       });
     });

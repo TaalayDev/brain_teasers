@@ -131,13 +131,13 @@ extension AppDatabaseSeedX on AppDatabase {
       ),
       PuzzlesCompanion.insert(
         categoryId: categoryId,
-        name: 'Circuit Path',
+        name: 'Flow Connect',
         description:
-            'Guide the energy from start to end by rotating circuit pieces. Connect them to create a continuous path.',
+            'Connect matching colors with pipes to create a flow without overlapping',
         difficulty: 'medium',
         orderInCategory: 4,
         gameData: jsonEncode({
-          "type": "circuit_path",
+          "type": "flow_connect",
           "gridSize": 6,
           "timeLimit": 180,
         }),
