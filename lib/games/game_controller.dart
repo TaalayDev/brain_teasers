@@ -22,14 +22,7 @@ class GameControllerParams extends Equatable {
   });
 
   @override
-  List<Object?> get props => [
-        timeLimit,
-        maxLevels,
-        onScoreUpdate,
-        onComplete,
-        onLevelComplete,
-        onStateChange
-      ];
+  List<Object?> get props => [timeLimit, maxLevels];
 }
 
 final gameControllerProvider = ChangeNotifierProvider.autoDispose
@@ -103,6 +96,28 @@ class GameController extends ChangeNotifier {
   }) {
     _timeRemaining = timeLimit;
     _maxLevels = maxLevels;
+  }
+
+  void setValues({
+    int? score,
+    int? timeRemaining,
+    int? currentLevel,
+    int? maxLevels,
+    int? lives,
+    int? moves,
+    int? streak,
+    int? highestStreak,
+    bool? showHint,
+  }) {
+    _score = score ?? _score;
+    _timeRemaining = timeRemaining ?? _timeRemaining;
+    _currentLevel = currentLevel ?? _currentLevel;
+    _maxLevels = maxLevels ?? _maxLevels;
+    _lives = lives ?? _lives;
+    _moves = moves ?? _moves;
+    _streak = streak ?? _streak;
+    _highestStreak = highestStreak ?? _highestStreak;
+    _showHint = showHint ?? _showHint;
   }
 
   // Game control methods
@@ -203,13 +218,15 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void nextLevel() {
+  bool nextLevel() {
     if (_currentLevel < _maxLevels - 1) {
       _currentLevel++;
       onLevelComplete?.call(_currentLevel);
       notifyListeners();
+      return true;
     } else {
       completeGame();
+      return false;
     }
   }
 

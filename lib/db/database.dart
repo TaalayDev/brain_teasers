@@ -200,7 +200,9 @@ class AppDatabase extends _$AppDatabase {
 
   // Progress-related queries
   Future<UserProgressData?> getProgressForPuzzle(int puzzleId) =>
-      (select(userProgress)..where((p) => p.puzzleId.equals(puzzleId)))
+      (select(userProgress)
+            ..where((p) => p.puzzleId.equals(puzzleId))
+            ..limit(1))
           .getSingleOrNull();
 
   Future<int> updateProgress(UserProgressCompanion progress) =>

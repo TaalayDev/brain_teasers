@@ -27,10 +27,10 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
   late List<Color> colors;
   FlowPath? currentPath;
   bool isComplete = false;
-  int moves = 0;
-  int score = 1000;
-  int timeRemaining = 0;
-  int currentLevel = 0;
+  int get moves => widget.gameController.moves;
+  int get score => widget.gameController.score;
+  int get timeRemaining => widget.gameController.timeRemaining;
+  int get currentLevel => widget.gameController.currentLevel;
 
   int get easyLevelsCount => FlowLevels.easyLevels.length;
   int get mediumLevelsCount => FlowLevels.mediumLevels.length;
@@ -39,21 +39,18 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
   @override
   void initState() {
     super.initState();
-    _initData();
     _initializeGame();
-    _startTimer();
-  }
 
-  void _initData() {
-    final data = widget.gameData;
-    currentLevel = data['level'] ?? 0;
-    score = data['score'] ?? 1000;
-    moves = data['moves'] ?? 0;
+    widget.gameController.startGame(
+      timeLimit: level.timeLimit,
+      maxLevels: easyLevelsCount + mediumLevelsCount + hardLevelsCount,
+      level: currentLevel,
+    );
+    widget.gameController.updateScore(1000);
   }
 
   void _initializeGame() {
     isComplete = false;
-    timeRemaining = 0;
 
     String difficulty = 'easy';
     if (currentLevel < easyLevelsCount) {
@@ -69,8 +66,11 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
       );
     }
 
-    timeRemaining = level.timeLimit;
     colors = FlowLevels.levelColors;
+    widget.gameController.startGame(
+      timeLimit: level.timeLimit,
+      level: currentLevel,
+    );
 
     // Initialize empty grid
     grid = List.generate(
@@ -95,25 +95,6 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
     }
 
     paths = [];
-  }
-
-  void _startTimer() {
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted || isComplete) return;
-
-      setState(() {
-        timeRemaining--;
-        if (timeRemaining <= 0) {
-          _handleTimeout();
-        } else {
-          _startTimer();
-        }
-      });
-    });
-  }
-
-  void _handleTimeout() {
-    widget.gameController.completeGame();
   }
 
   void _onPanStart(DragStartDetails details) {
@@ -183,19 +164,14 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
         .toSet();
 
     if (connectedColors.length == totalColors.length) {
-      score = _calculateScore();
-      widget.gameController.updateScore(score);
+      widget.gameController.updateScore(_calculateScore());
 
-      if (currentLevel <
-          easyLevelsCount + mediumLevelsCount + hardLevelsCount - 1) {
-        currentLevel++;
-        widget.gameController.nextLevel();
+      if (widget.gameController.nextLevel()) {
         _initializeGame();
-        _startTimer();
       } else {
         isComplete = true;
-        widget.gameController.completeGame();
       }
+      setState(() {});
     }
   }
 
@@ -386,7 +362,7 @@ class _FlowConnectGameState extends State<FlowConnectGame> {
               setState(() {
                 paths.clear();
                 currentPath = null;
-                moves = 0;
+                widget.gameController.restartGame();
               });
             },
           ),

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:math';
+import 'package:brain_teasers/utils/card_match_level.dart';
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,7 +27,6 @@ class CardMatchGame extends StatefulWidget {
 
 class _CardMatchGameState extends State<CardMatchGame>
     with TickerProviderStateMixin {
-  late List<CardData> cards;
   CardData? firstCard;
   CardData? secondCard;
   int score = 0;
@@ -33,81 +34,47 @@ class _CardMatchGameState extends State<CardMatchGame>
   bool isProcessing = false;
   late int gridRows;
   late int gridCols;
-  int timeElapsed = 0;
-  late Timer gameTimer;
-  late AnimationController _confettiController;
+  int get timeElapsed => widget.gameController.timeRemaining;
+  late ConfettiController _confettiController;
   bool showHint = false;
   int hintsRemaining = 3;
+
+  int get _level => widget.gameController.currentLevel;
+  CardMatchLevel get level => CardMatchLevelSystem.levels[_level];
+  List<CardData> cards = [];
 
   @override
   void initState() {
     super.initState();
     _initializeGame();
-    _startTimer();
-    _confettiController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
+
+    _confettiController = ConfettiController(
+      duration: const Duration(milliseconds: 500),
     );
   }
 
-  void _startTimer() {
-    gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        timeElapsed++;
-      });
-    });
-  }
-
   void _initializeGame() {
-    gridRows = widget.gameData['gridSize']['rows'];
-    gridCols = widget.gameData['gridSize']['columns'];
-    cards = _createCards();
+    _initializeLevel();
   }
 
-  List<CardData> _createCards() {
-    final List<String> values = _generateCardValues();
-    return values
-        .asMap()
-        .entries
-        .map((entry) => CardData(
-              id: entry.key,
-              value: entry.value,
-              animation: AnimationController(
-                vsync: this,
-                duration: const Duration(milliseconds: 400),
-              ),
-              fadeAnimation: AnimationController(
-                vsync: this,
-                duration: const Duration(milliseconds: 400),
-              ),
-            ))
-        .toList();
-  }
+  void _initializeLevel() {
+    gridRows = level.gridRows;
+    gridCols = level.gridColumns;
+    cards = CardMatchLevelSystem.generateCards(level, this);
 
-  List<String> _generateCardValues() {
-    final theme = widget.gameData['theme'];
-    final int pairsNeeded = (gridRows * gridCols) ~/ 2;
-    List<String> values = [];
+    hintsRemaining = level.hintsAllowed;
+    firstCard = null;
+    secondCard = null;
+    isProcessing = false;
+    showHint = false;
 
-    switch (theme) {
-      case 'animals':
-        values = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯'];
-        break;
-      case 'fruits':
-        values = ['🍎', '🍌', '🍇', '🍊', '🍓', '🍐', '🍒', '🥝', '🍍', '🥭'];
-        break;
-      case 'shapes':
-        values = ['⭐', '⚡', '❤️', '💠', '🔶', '🔺', '⭕', '🔷', '💫', '🌟'];
-        break;
-      default:
-        values = List.generate(10, (index) => String.fromCharCode(65 + index));
-    }
-
-    values = values.take(pairsNeeded).toList();
-    values = [...values, ...values];
-    values.shuffle();
-
-    return values;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.gameController.startGame(
+        level: _level,
+        maxLevels: CardMatchLevelSystem.levels.length,
+        timeLimit: level.timeLimit,
+      );
+    });
   }
 
   void _showHintBriefly() {
@@ -126,7 +93,6 @@ class _CardMatchGameState extends State<CardMatchGame>
   }
 
   void _onMatchFound() {
-    _confettiController.forward(from: 0);
     score += 100;
 
     // Bonus points for quick matches
@@ -137,13 +103,19 @@ class _CardMatchGameState extends State<CardMatchGame>
     widget.gameController.updateScore(score);
   }
 
+  void _updateCard(int index, CardData card) {
+    cards[index] = card;
+  }
+
   void _onCardTap(CardData card) {
     if (isProcessing || card.isMatched || card.isFlipped) return;
 
     card.animation.forward();
 
+    final index = card.currentIndex;
+
     setState(() {
-      card.isFlipped = true;
+      _updateCard(index, card.copyWith(isFlipped: true));
 
       if (firstCard == null) {
         firstCard = card;
@@ -160,8 +132,14 @@ class _CardMatchGameState extends State<CardMatchGame>
         Future.delayed(const Duration(milliseconds: 1000), () {
           setState(() {
             if (firstCard!.value == secondCard!.value) {
-              firstCard!.isMatched = true;
-              secondCard!.isMatched = true;
+              _updateCard(
+                firstCard!.currentIndex,
+                firstCard!.copyWith(isMatched: true),
+              );
+              _updateCard(
+                secondCard!.currentIndex,
+                secondCard!.copyWith(isMatched: true),
+              );
 
               // Start fade out animation for matched cards
               firstCard!.fadeAnimation.forward();
@@ -170,14 +148,31 @@ class _CardMatchGameState extends State<CardMatchGame>
               _onMatchFound();
 
               if (cards.every((card) => card.isMatched)) {
-                gameTimer.cancel();
-                widget.gameController.completeGame();
+                _confettiController.play();
+
+                // Haptic feedback for game completion
+                HapticFeedback.mediumImpact();
+
+                if (_level == CardMatchLevelSystem.levels.length - 1) {
+                  widget.gameController.completeGame();
+                } else {
+                  widget.gameController.nextLevel();
+                  _initializeLevel();
+                }
               }
             } else {
               firstCard!.animation.reverse();
               secondCard!.animation.reverse();
-              firstCard!.isFlipped = false;
-              secondCard!.isFlipped = false;
+
+              _updateCard(
+                firstCard!.currentIndex,
+                firstCard!.copyWith(isFlipped: false),
+              );
+              _updateCard(
+                secondCard!.currentIndex,
+                secondCard!.copyWith(isFlipped: false),
+              );
+
               score = math.max(0, score - 10);
               widget.gameController.updateScore(score);
 
@@ -205,8 +200,7 @@ class _CardMatchGameState extends State<CardMatchGame>
               alignment: Alignment.center,
               children: [
                 _buildGrid(),
-                if (_confettiController.status == AnimationStatus.forward)
-                  ConfettiOverlay(controller: _confettiController),
+                ConfettiOverlay(controller: _confettiController),
               ],
             ),
           ),
@@ -246,29 +240,34 @@ class _CardMatchGameState extends State<CardMatchGame>
   }
 
   Widget _buildTimeDisplay() {
-    final minutes = (timeElapsed ~/ 60).toString().padLeft(2, '0');
-    final seconds = (timeElapsed % 60).toString().padLeft(2, '0');
+    return AnimatedBuilder(
+      animation: widget.gameController,
+      builder: (context, child) {
+        final minutes = (timeElapsed ~/ 60).toString().padLeft(2, '0');
+        final seconds = (timeElapsed % 60).toString().padLeft(2, '0');
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.amber.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.timer, color: Colors.amber),
-          const SizedBox(width: 8),
-          Text(
-            '$minutes:$seconds',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.amber,
-            ),
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              const Icon(Icons.timer, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                '$minutes:$seconds',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -291,6 +290,8 @@ class _CardMatchGameState extends State<CardMatchGame>
   Widget _buildGrid() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
+      constraints: const BoxConstraints(maxWidth: 800),
+      alignment: Alignment.center,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final cardWidth =
@@ -365,7 +366,6 @@ class _CardMatchGameState extends State<CardMatchGame>
 
   @override
   void dispose() {
-    gameTimer.cancel();
     _confettiController.dispose();
     for (var card in cards) {
       card.animation.dispose();
@@ -504,7 +504,7 @@ class MemoryCard extends StatelessWidget {
 }
 
 class ConfettiOverlay extends StatelessWidget {
-  final AnimationController controller;
+  final ConfettiController controller;
 
   const ConfettiOverlay({
     super.key,
@@ -513,17 +513,39 @@ class ConfettiOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, child) {
-        return CustomPaint(
-          size: Size.infinite,
-          painter: ConfettiPainter(
-            progress: controller.value,
-          ),
-        );
-      },
+    return Align(
+      alignment: Alignment.center,
+      child: ConfettiWidget(
+        confettiController: controller,
+        blastDirectionality: BlastDirectionality.explosive,
+        shouldLoop: false,
+        colors: const [
+          Colors.green,
+          Colors.blue,
+          Colors.pink,
+          Colors.orange,
+          Colors.purple
+        ],
+        createParticlePath: drawStar,
+      ),
     );
+  }
+
+  Path drawStar(Size size) {
+    final path = Path();
+    final halfWidth = size.width / 2;
+    final halfHeight = size.height / 2;
+    final radius = math.min(halfWidth, halfHeight);
+
+    path.moveTo(halfWidth, 0);
+    for (var i = 1; i <= 5; i++) {
+      final x = math.cos(2 * math.pi * i / 5) * radius + halfWidth;
+      final y = math.sin(2 * math.pi * i / 5) * radius + halfHeight;
+      path.lineTo(x, y);
+    }
+
+    path.close();
+    return path;
   }
 }
 
@@ -534,17 +556,20 @@ class ConfettiPainter extends CustomPainter {
   final List<Particle> particles;
 
   ConfettiPainter({required this.progress})
-      : particles = List.generate(20, (index) {
-          return Particle(
-            x: random.nextDouble(),
-            y: random.nextDouble(),
-            color: Colors.primaries[random.nextInt(Colors.primaries.length)]
-                .withOpacity(0.6),
-            size: random.nextDouble() * 3 + 2,
-            speed: random.nextDouble() * 0.3 + 0.1,
-            angle: random.nextDouble() * math.pi / 2 + math.pi / 4,
-          );
-        });
+      : particles = List.generate(
+          20,
+          (index) {
+            return Particle(
+              x: random.nextDouble(),
+              y: random.nextDouble(),
+              color: Colors.primaries[random.nextInt(Colors.primaries.length)]
+                  .withOpacity(0.6),
+              size: random.nextDouble() * 3 + 2,
+              speed: random.nextDouble() * 0.3 + 0.1,
+              angle: random.nextDouble() * math.pi / 2 + math.pi / 4,
+            );
+          },
+        );
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -587,24 +612,6 @@ class Particle {
     required this.size,
     required this.speed,
     required this.angle,
-  });
-}
-
-class CardData {
-  final int id;
-  final String value;
-  bool isMatched;
-  bool isFlipped;
-  final AnimationController animation;
-  final AnimationController fadeAnimation;
-
-  CardData({
-    required this.id,
-    required this.value,
-    required this.animation,
-    required this.fadeAnimation,
-    this.isMatched = false,
-    this.isFlipped = false,
   });
 }
 

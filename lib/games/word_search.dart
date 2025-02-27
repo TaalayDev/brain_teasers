@@ -1,9 +1,9 @@
-import 'package:brain_teasers/components/game_container.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
-import '../components/header_container.dart';
+import '../components/game_container.dart';
 import '../theme/app_theme.dart';
 import 'game_controller.dart';
 
@@ -30,16 +30,80 @@ class _WordSearchGameState extends State<WordSearchGame> {
   Offset? dragStart;
   Offset? dragEnd;
   int score = 0;
+  late List<LevelData> levels;
+  late int currentLevel;
+  bool _isLevelTransitioning = false;
 
   @override
   void initState() {
     super.initState();
-    final gridSize = widget.gameData['gridSize'] as int;
-    wordsToFind = List<String>.from(widget.gameData['words']);
+    _initializeLevels();
+    currentLevel = widget.gameController.currentLevel;
+    _initializeGame();
+
+    // Start the game with the controller
+    widget.gameController.startGame(
+      level: currentLevel,
+      maxLevels: levels.length,
+      timeLimit: levels[currentLevel].timeLimit,
+    );
+  }
+
+  void _initializeLevels() {
+    // Create multiple level configurations with increasing difficulty
+    levels = [
+      LevelData(
+        gridSize: widget.gameData['gridSize'] ?? 8,
+        words: List<String>.from(widget.gameData['words'] ?? []),
+        timeLimit: 120, // 2 minutes for first level
+      ),
+      // Level 2 - 10x10 grid with longer words
+      LevelData(
+        gridSize: 10,
+        words: _generateLevelWords(2),
+        timeLimit: 180, // 3 minutes
+      ),
+      // Level 3 - 12x12 grid with more and longer words
+      LevelData(
+        gridSize: 12,
+        words: _generateLevelWords(3),
+        timeLimit: 240, // 4 minutes
+      ),
+    ];
+  }
+
+  List<String> _generateLevelWords(int level) {
+    // If the game data contains predefined levels, use those
+    if (widget.gameData.containsKey('levels') &&
+        widget.gameData['levels'] is List &&
+        widget.gameData['levels'].length > level - 1) {
+      return List<String>.from(widget.gameData['levels'][level - 1]['words']);
+    }
+
+    // Otherwise generate words based on level difficulty
+    final baseWords = List<String>.from(widget.gameData['words'] ?? []);
+
+    // Create additional words or use a subset of provided words
+    if (level == 2) {
+      return baseWords.length > 6
+          ? baseWords.sublist(0, 6)
+          : [...baseWords, 'PUZZLE', 'SEARCH', 'HIDDEN'];
+    } else if (level == 3) {
+      return baseWords.length > 8
+          ? baseWords.sublist(0, 8)
+          : [...baseWords, 'CHALLENGE', 'DISCOVERY', 'ADVENTURE', 'TREASURE'];
+    }
+
+    return baseWords;
+  }
+
+  void _initializeGame() {
+    final levelData = levels[currentLevel];
+    wordsToFind = List<String>.from(levelData.words);
     foundWords = [];
     selectedCells = [];
     foundWordLines = [];
-    grid = _generateGrid(gridSize, wordsToFind);
+    grid = _generateGrid(levelData.gridSize, levelData.words);
   }
 
   List<List<String>> _generateGrid(int size, List<String> words) {
@@ -105,7 +169,7 @@ class _WordSearchGameState extends State<WordSearchGame> {
     for (var i = 0; i < word.length; i++) {
       final x = startX + direction[0] * i;
       final y = startY + direction[1] * i;
-      if (grid[x][y].isNotEmpty && grid[x][y] != word[i]) {
+      if (grid[y][x].isNotEmpty && grid[y][x] != word[i]) {
         return false;
       }
     }
@@ -118,14 +182,23 @@ class _WordSearchGameState extends State<WordSearchGame> {
     for (var i = 0; i < word.length; i++) {
       final x = startX + direction[0] * i;
       final y = startY + direction[1] * i;
-      grid[x][y] = word[i];
+      grid[y][x] = word[i];
     }
   }
 
   void _handleDragStart(Offset localPosition) {
+    if (_isLevelTransitioning) return;
+
     final cellSize = _getCellSize();
     final gridX = (localPosition.dx / cellSize).floor();
     final gridY = (localPosition.dy / cellSize).floor();
+
+    if (gridX < 0 ||
+        gridX >= grid.length ||
+        gridY < 0 ||
+        gridY >= grid.length) {
+      return;
+    }
 
     setState(() {
       dragStart = Offset(gridX.toDouble(), gridY.toDouble());
@@ -135,11 +208,19 @@ class _WordSearchGameState extends State<WordSearchGame> {
   }
 
   void _handleDragUpdate(Offset localPosition) {
-    if (dragStart == null) return;
+    if (dragStart == null || _isLevelTransitioning) return;
 
     final cellSize = _getCellSize();
     final gridX = (localPosition.dx / cellSize).floor();
     final gridY = (localPosition.dy / cellSize).floor();
+
+    if (gridX < 0 ||
+        gridX >= grid.length ||
+        gridY < 0 ||
+        gridY >= grid.length) {
+      return;
+    }
+
     final newDragEnd = Offset(gridX.toDouble(), gridY.toDouble());
 
     if (newDragEnd != dragEnd) {
@@ -151,7 +232,7 @@ class _WordSearchGameState extends State<WordSearchGame> {
   }
 
   void _handleDragEnd() {
-    if (dragStart == null || dragEnd == null) return;
+    if (dragStart == null || dragEnd == null || _isLevelTransitioning) return;
 
     final word = _getSelectedWord();
     if (wordsToFind.contains(word) && !foundWords.contains(word)) {
@@ -162,12 +243,15 @@ class _WordSearchGameState extends State<WordSearchGame> {
           end: dragEnd!,
           color: _getRandomColor(),
         ));
-        score += word.length * 100;
+
+        // Award score based on word length and current level
+        final wordScore = word.length * 100 * (currentLevel + 1);
+        score += wordScore;
         widget.gameController.updateScore(score);
       });
 
       if (foundWords.length == wordsToFind.length) {
-        widget.gameController.completeGame();
+        _handleLevelComplete();
       }
     }
 
@@ -176,6 +260,58 @@ class _WordSearchGameState extends State<WordSearchGame> {
       dragEnd = null;
       selectedCells = [];
     });
+  }
+
+  void _handleLevelComplete() {
+    setState(() {
+      _isLevelTransitioning = true;
+    });
+
+    // Add completion bonus based on remaining time
+    final timeBonus = widget.gameController.timeRemaining * 10;
+    setState(() {
+      score += timeBonus;
+      widget.gameController.updateScore(score);
+    });
+
+    // Show success message
+    _showLevelCompleteMessage();
+
+    // Check if there are more levels
+    Future.delayed(const Duration(seconds: 2), () {
+      if (currentLevel < levels.length - 1) {
+        // Go to next level
+        bool hasNextLevel = widget.gameController.nextLevel();
+        if (hasNextLevel) {
+          setState(() {
+            currentLevel = widget.gameController.currentLevel;
+            _isLevelTransitioning = false;
+            _initializeGame();
+          });
+        }
+      } else {
+        // Complete the game
+        widget.gameController.completeGame();
+      }
+    });
+  }
+
+  void _showLevelCompleteMessage() {
+    final timeBonus = widget.gameController.timeRemaining * 10;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Level ${currentLevel + 1} Complete! +$timeBonus time bonus',
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: AppTheme.correctAnswerColor,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   List<Offset> _getSelectedCells(Offset start, Offset end) {
@@ -210,7 +346,7 @@ class _WordSearchGameState extends State<WordSearchGame> {
           cell.dx < grid.length &&
           cell.dy >= 0 &&
           cell.dy < grid.length) {
-        word.write(grid[cell.dx.toInt()][cell.dy.toInt()]);
+        word.write(grid[cell.dy.toInt()][cell.dx.toInt()]);
       }
     }
     return word.toString();
@@ -236,6 +372,12 @@ class _WordSearchGameState extends State<WordSearchGame> {
     return colors[math.Random().nextInt(colors.length)];
   }
 
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return GameContainer(
@@ -252,54 +394,95 @@ class _WordSearchGameState extends State<WordSearchGame> {
   }
 
   Widget _buildHeader() {
+    // Use AnimatedBuilder to listen to GameController changes for the timer
+    return AnimatedBuilder(
+        animation: widget.gameController,
+        builder: (context, _) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    _buildStatCard(
+                      icon: Icons.stars,
+                      label: 'Score',
+                      value: score.toString(),
+                      color: AppTheme.accentColor,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildStatCard(
+                      icon: Icons.timer,
+                      label: 'Time',
+                      value: _formatTime(widget.gameController.timeRemaining),
+                      color: widget.gameController.timeRemaining < 30
+                          ? AppTheme.wrongAnswerColor
+                          : AppTheme.primaryColor,
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _buildStatCard(
+                      icon: Icons.format_list_bulleted,
+                      label: 'Words',
+                      value: '${foundWords.length}/${wordsToFind.length}',
+                      color: AppTheme.secondaryColor,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Level ${currentLevel + 1}/${levels.length}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.accentColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        });
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Word Search',
+                label,
                 style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  fontSize: 12,
+                  color: color,
                 ),
               ),
               Text(
-                '${foundWords.length}/${wordsToFind.length} words found',
+                value,
                 style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  color: AppTheme.primaryColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
                 ),
               ),
             ],
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.star, color: AppTheme.accentColor),
-                const SizedBox(width: 8),
-                Text(
-                  score.toString(),
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -375,7 +558,10 @@ class _WordSearchGameState extends State<WordSearchGame> {
                 decoration: isFound ? TextDecoration.lineThrough : null,
               ),
             ),
-          );
+          ).animate().fadeIn(
+                duration: const Duration(milliseconds: 300),
+                delay: Duration(milliseconds: isFound ? 0 : 100),
+              );
         }).toList(),
       ),
     );
@@ -476,8 +662,8 @@ class WordSearchPainter extends CustomPainter {
         textPainter.layout();
 
         final offset = Offset(
-          i * cellSize + (cellSize - textPainter.width) / 2,
-          j * cellSize + (cellSize - textPainter.height) / 2,
+          j * cellSize + (cellSize - textPainter.width) / 2,
+          i * cellSize + (cellSize - textPainter.height) / 2,
         );
         textPainter.paint(canvas, offset);
       }
@@ -520,63 +706,14 @@ class FoundWordData {
   });
 }
 
-// Extension for helpful utilities
-extension GridUtils on List<List<String>> {
-  String getWordInDirection(
-      int startX, int startY, List<int> direction, int length) {
-    final buffer = StringBuffer();
-    for (var i = 0; i < length; i++) {
-      final x = startX + direction[0] * i;
-      final y = startY + direction[1] * i;
-      if (x < 0 || x >= length || y < 0 || y >= length) break;
-      buffer.write(this[x][y]);
-    }
-    return buffer.toString();
-  }
+class LevelData {
+  final int gridSize;
+  final List<String> words;
+  final int timeLimit;
+
+  LevelData({
+    required this.gridSize,
+    required this.words,
+    required this.timeLimit,
+  });
 }
-
-// Helper class for handling word placement directions
-class WordPlacementDirection {
-  final List<int> direction;
-  final String name;
-
-  const WordPlacementDirection(this.direction, this.name);
-
-  static const horizontal = WordPlacementDirection([0, 1], 'horizontal');
-  static const vertical = WordPlacementDirection([1, 0], 'vertical');
-  static const diagonalDown = WordPlacementDirection([1, 1], 'diagonal down');
-  static const diagonalUp = WordPlacementDirection([-1, 1], 'diagonal up');
-  static const horizontalReverse =
-      WordPlacementDirection([0, -1], 'horizontal reverse');
-  static const verticalReverse =
-      WordPlacementDirection([-1, 0], 'vertical reverse');
-  static const diagonalDownReverse =
-      WordPlacementDirection([1, -1], 'diagonal down reverse');
-  static const diagonalUpReverse =
-      WordPlacementDirection([-1, -1], 'diagonal up reverse');
-
-  static const List<WordPlacementDirection> allDirections = [
-    horizontal,
-    vertical,
-    diagonalDown,
-    diagonalUp,
-    horizontalReverse,
-    verticalReverse,
-    diagonalDownReverse,
-    diagonalUpReverse,
-  ];
-}
-
-// Example usage:
-// final game = WordSearchGame(
-//   gameData: {
-//     'gridSize': 8,
-//     'words': ['FLUTTER', 'DART', 'CODE', 'GAME'],
-//   },
-//   onScoreUpdate: (score) {
-//     print('Score: $score');
-//   },
-//   onComplete: () {
-//     print('Game Complete!');
-//   },
-// );

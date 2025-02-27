@@ -12,6 +12,7 @@ import '../games/change_blindness.dart';
 import '../games/equation_builder.dart';
 import '../games/flow_connection.dart';
 import '../games/gravity_flow.dart';
+import '../games/light_bender.dart';
 import '../games/pendulum_puzzle.dart';
 import '../games/pic_slide.dart';
 import '../games/multiple_object_tracking.dart';

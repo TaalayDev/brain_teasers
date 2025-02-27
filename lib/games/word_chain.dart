@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
 
-import '../components/header_container.dart';
+import '../components/game_container.dart';
 import '../theme/app_theme.dart';
 import 'game_controller.dart';
 
@@ -30,6 +33,8 @@ class _WordChainGameState extends State<WordChainGame> {
   int moves = 0;
   int maxMoves = 10;
   bool isComplete = false;
+  bool isCheckingWord = false;
+  int timeRemaining = 0;
 
   @override
   void initState() {
@@ -38,6 +43,25 @@ class _WordChainGameState extends State<WordChainGame> {
     targetWord = widget.gameData['end'];
     wordChain = [startWord];
     _controller = TextEditingController();
+
+    // Start game timer with game controller
+    widget.gameController.startGame(
+      timeLimit: 180, // 3 minutes
+      maxLevels: 1,
+    );
+  }
+
+  // Validate if a word exists using an online API (optional, as a fallback)
+  Future<bool> _isRealWord(String word) async {
+    try {
+      // Only call API if we don't have a local dictionary
+      final response = await http.get(
+        Uri.parse('https://api.dictionaryapi.dev/api/v2/entries/en/$word'),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
@@ -46,20 +70,43 @@ class _WordChainGameState extends State<WordChainGame> {
     super.dispose();
   }
 
-  void _submitWord(String newWord) {
+  void _submitWord(String newWord) async {
+    if (isCheckingWord) return;
+    setState(() => isCheckingWord = true);
+
+    newWord = newWord.toUpperCase();
+
     if (newWord.isEmpty) {
-      setState(() => errorMessage = 'Please enter a word');
+      setState(() {
+        errorMessage = 'Please enter a word';
+        isCheckingWord = false;
+      });
       return;
     }
 
     if (newWord.length != startWord.length) {
-      setState(
-          () => errorMessage = 'Word must be ${startWord.length} letters long');
+      setState(() {
+        errorMessage = 'Word must be ${startWord.length} letters long';
+        isCheckingWord = false;
+      });
       return;
     }
 
     if (!_isOneLetterDifferent(wordChain.last, newWord)) {
-      setState(() => errorMessage = 'You can only change one letter at a time');
+      setState(() {
+        errorMessage = 'You can only change one letter at a time';
+        isCheckingWord = false;
+      });
+      return;
+    }
+
+    // Check if the word exists in dictionary
+    final isValid = await _isRealWord(newWord);
+    if (!isValid) {
+      setState(() {
+        errorMessage = '"$newWord" is not a valid English word';
+        isCheckingWord = false;
+      });
       return;
     }
 
@@ -68,6 +115,8 @@ class _WordChainGameState extends State<WordChainGame> {
       wordChain.add(newWord);
       _controller.clear();
       moves++;
+      isCheckingWord = false;
+      widget.gameController.incrementMoves();
 
       // Calculate score based on moves and word length
       final moveScore = 100 - (moves * 10);
@@ -79,6 +128,7 @@ class _WordChainGameState extends State<WordChainGame> {
         widget.gameController.completeGame();
       } else if (moves >= maxMoves) {
         errorMessage = 'Out of moves! Game Over';
+        widget.gameController.gameOver();
       }
     });
   }
@@ -107,8 +157,7 @@ class _WordChainGameState extends State<WordChainGame> {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Theme.of(context).scaffoldBackgroundColor,
+    return GameContainer(
       child: Column(
         children: [
           _buildHeader(),
@@ -122,64 +171,162 @@ class _WordChainGameState extends State<WordChainGame> {
   }
 
   Widget _buildHeader() {
-    return HeaderContainer(
-      padding: const EdgeInsets.all(16),
+    return Container(
+      padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 8),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Word Chain',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Change one letter at a time',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ],
+              _buildStatCard(
+                icon: Icons.touch_app,
+                label: 'Moves',
+                value: '$moves/$maxMoves',
+                color: AppTheme.primaryColor,
               ),
-              _buildScoreDisplay(),
+              _buildTimeDisplay(),
+              _buildStatCard(
+                icon: Icons.stars,
+                label: 'Score',
+                value: score.toString(),
+                color: AppTheme.accentColor,
+              ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          _buildTargetHeader(),
+          const SizedBox(height: 8),
           _buildProgressBar(),
         ],
       ),
     );
   }
 
-  Widget _buildScoreDisplay() {
+  Widget _buildTimeDisplay() {
+    return AnimatedBuilder(
+      animation: widget.gameController,
+      builder: (context, child) {
+        final minutes = (widget.gameController.timeRemaining ~/ 60)
+            .toString()
+            .padLeft(2, '0');
+        final seconds = (widget.gameController.timeRemaining % 60)
+            .toString()
+            .padLeft(2, '0');
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.timer, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                '$minutes:$seconds',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTargetHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Icon(
-            Icons.stars_rounded,
-            color: AppTheme.accentColor,
+          Row(
+            children: [
+              Text(
+                'Start: ',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              Text(
+                startWord,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ],
           ),
+          const Icon(Icons.arrow_forward, color: AppTheme.primaryColor),
+          Row(
+            children: [
+              Text(
+                'Target: ',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              Text(
+                targetWord,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
           const SizedBox(width: 8),
-          Text(
-            score.toString(),
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: color,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -187,42 +334,18 @@ class _WordChainGameState extends State<WordChainGame> {
   }
 
   Widget _buildProgressBar() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Moves: $moves/$maxMoves',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: AppTheme.primaryColor,
-              ),
-            ),
-            Text(
-              '${((maxMoves - moves) / maxMoves * 100).toInt()}% remaining',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: AppTheme.primaryColor,
-              ),
-            ),
-          ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: LinearProgressIndicator(
+        value: 1 - (moves / maxMoves),
+        backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+        valueColor: AlwaysStoppedAnimation<Color>(
+          moves < maxMoves * 0.7
+              ? AppTheme.correctAnswerColor
+              : AppTheme.wrongAnswerColor,
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: 1 - (moves / maxMoves),
-            backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-            valueColor: AlwaysStoppedAnimation<Color>(
-              moves < maxMoves * 0.7
-                  ? AppTheme.correctAnswerColor
-                  : AppTheme.wrongAnswerColor,
-            ),
-            minHeight: 8,
-          ),
-        ),
-      ],
+        minHeight: 8,
+      ),
     );
   }
 
@@ -293,12 +416,21 @@ class _WordChainGameState extends State<WordChainGame> {
               Expanded(
                 child: TextField(
                   controller: _controller,
-                  enabled: !isComplete && moves < maxMoves,
+                  enabled: !isComplete && moves < maxMoves && !isCheckingWord,
                   decoration: InputDecoration(
                     hintText: 'Enter next word...',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    suffixIcon: isCheckingWord
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : null,
                   ),
                   textCapitalization: TextCapitalization.characters,
                   onSubmitted: _submitWord,
@@ -311,15 +443,6 @@ class _WordChainGameState extends State<WordChainGame> {
                 color: AppTheme.primaryColor,
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Target word: $targetWord',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              color: AppTheme.primaryColor,
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
