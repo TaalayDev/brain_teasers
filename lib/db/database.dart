@@ -211,6 +211,13 @@ class AppDatabase extends _$AppDatabase {
         mode: InsertMode.insertOrReplace,
       );
 
+  Future<Puzzle> getDailyPuzzle() async {
+    final today = DateTime.now();
+    final dayOfYear = today.day;
+    final puzzleId = dayOfYear % 10;
+    return getPuzzleById(puzzleId);
+  }
+
   // Achievement-related queries
   Stream<List<Achievement>> watchUnlockedAchievements() {
     final query = select(achievements).join([

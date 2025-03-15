@@ -1,3 +1,5 @@
+import 'package:device_preview_plus/device_preview_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flame/flame.dart';
@@ -33,28 +35,33 @@ class BrainTeasersApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp.router(
-      title: 'BrainTeasers',
+    return DevicePreview(
+      enabled: kDebugMode,
+      builder: (context) {
+        return MaterialApp.router(
+          title: 'BrainTeasers',
 
-      // Theme configuration
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
+          // Theme configuration
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeMode.dark,
 
-      // Localization setup
-      localizationsDelegates: const [
-        Strings.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: Strings.supportedLocales,
+          // Localization setup
+          localizationsDelegates: const [
+            Strings.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: Strings.supportedLocales,
 
-      // Router configuration
-      routerConfig: AppRouter.router,
+          // Router configuration
+          routerConfig: AppRouter.router,
 
-      // Debug banner
-      debugShowCheckedModeBanner: false,
+          // Debug banner
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }

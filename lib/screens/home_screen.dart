@@ -149,7 +149,7 @@ class HomeScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: _buildDailyChallenge(context),
+              child: _buildDailyChallenge(context, ref),
             ),
           ),
 
@@ -293,7 +293,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDailyChallenge(BuildContext context) {
+  Widget _buildDailyChallenge(BuildContext context, WidgetRef ref) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -316,7 +316,14 @@ class HomeScreen extends ConsumerWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => context.push('/puzzle/daily'),
+          onTap: () async {
+            // Fetch the daily challenge
+            final database = ref.read(databaseProvider);
+            final puzzle = await database.getDailyPuzzle();
+            if (context.mounted) {
+              context.push('/puzzle/${puzzle.id}');
+            }
+          },
           borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.all(20),

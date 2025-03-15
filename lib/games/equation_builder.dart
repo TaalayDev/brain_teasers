@@ -27,9 +27,10 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
   late List<EquationElement> equation;
   late List<int> unusedNumbers;
   bool isComplete = false;
-  int score = 0;
   int moves = 0;
   String? errorMessage;
+  int hintsRemaining = 3;
+  bool isShowingHint = false;
 
   final operators = ['+', '-', '*', '/'];
 
@@ -40,6 +41,12 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
     targetNumber = widget.gameData['target'];
     equation = [];
     unusedNumbers = List<int>.from(availableNumbers);
+
+    // Start the game with the controller
+    widget.gameController.startGame(
+      timeLimit: 180, // 3 minutes
+      maxLevels: 1,
+    );
   }
 
   void _addNumber(int number) {
@@ -52,6 +59,8 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
       ));
       unusedNumbers.remove(number);
       _validateEquation();
+      moves++;
+      widget.gameController.incrementMoves();
     });
   }
 
@@ -65,6 +74,8 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
         value: operator,
       ));
       _validateEquation();
+      moves++;
+      widget.gameController.incrementMoves();
     });
   }
 
@@ -78,6 +89,33 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
       }
       errorMessage = null;
       _validateEquation();
+    });
+  }
+
+  void _useHint() {
+    if (hintsRemaining <= 0) return;
+
+    setState(() {
+      hintsRemaining--;
+      isShowingHint = true;
+
+      // Show a simple hint like what operator might work next
+      if (equation.isEmpty) {
+        errorMessage = "Hint: Start with a number";
+      } else if (equation.last.type == ElementType.number) {
+        errorMessage = "Hint: Try adding an operator next";
+      } else {
+        errorMessage = "Hint: Add a number after an operator";
+      }
+    });
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          isShowingHint = false;
+          errorMessage = null;
+        });
+      }
     });
   }
 
@@ -104,7 +142,7 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
       setState(() {
         if (result == targetNumber) {
           isComplete = true;
-          score = _calculateScore();
+          int score = _calculateScore();
           widget.gameController.updateScore(score);
           widget.gameController.completeGame();
           errorMessage = null;
@@ -163,7 +201,8 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
   int _calculateScore() {
     const baseScore = 1000;
     final movesPenalty = moves * 10;
-    return math.max(0, baseScore - movesPenalty);
+    final timeBonus = widget.gameController.timeRemaining * 5;
+    return math.max(0, baseScore - movesPenalty + timeBonus);
   }
 
   @override
@@ -182,63 +221,101 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
   }
 
   Widget _buildHeader() {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Equation Builder',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                  ),
-                  Text(
-                    'Target: $targetNumber',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ],
+              _buildStatCard(
+                icon: Icons.stars,
+                label: 'Score',
+                value: widget.gameController.score.toString(),
+                color: AppTheme.accentColor,
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.star,
-                      color: AppTheme.accentColor,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      score.toString(),
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: 16),
+              _buildTimeDisplay(),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Target: $targetNumber',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: AppTheme.primaryColor,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          _buildProgressBar(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTimeDisplay() {
+    return AnimatedBuilder(
+      animation: widget.gameController,
+      builder: (context, child) {
+        final minutes = (widget.gameController.timeRemaining ~/ 60)
+            .toString()
+            .padLeft(2, '0');
+        final seconds = (widget.gameController.timeRemaining % 60)
+            .toString()
+            .padLeft(2, '0');
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.timer, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                '$minutes:$seconds',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProgressBar() {
+    // Calculate how close the player is to completing the equation
+    double progress = 0.0;
+    if (equation.isNotEmpty) {
+      final result = _evaluateEquation();
+      if (result != null) {
+        // Calculate relative progress toward target
+        final difference = (targetNumber - result).abs();
+        progress = math.max(0, 1 - (difference / targetNumber));
+        // Cap at 0.9 unless exact match
+        if (result != targetNumber && progress > 0.9) progress = 0.9;
+        if (result == targetNumber) progress = 1.0;
+      }
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: LinearProgressIndicator(
+        value: progress,
+        backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+        valueColor: AlwaysStoppedAnimation<Color>(
+          progress == 1.0 ? AppTheme.correctAnswerColor : AppTheme.primaryColor,
+        ),
+        minHeight: 6,
       ),
     );
   }
@@ -246,7 +323,8 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
   Widget _buildEquationDisplay() {
     return Container(
       margin: const EdgeInsets.all(16),
-      height: 120,
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 100),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -258,11 +336,12 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
           ),
         ],
       ),
+      padding: const EdgeInsets.all(16),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
             children: [
               ...equation.map((element) => Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -301,7 +380,9 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
               errorMessage!,
               style: GoogleFonts.poppins(
                 fontSize: 14,
-                color: AppTheme.wrongAnswerColor,
+                color: isShowingHint
+                    ? AppTheme.accentColor
+                    : AppTheme.wrongAnswerColor,
               ),
             ),
           ],
@@ -330,6 +411,14 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
                     ? AppTheme.primaryColor
                     : AppTheme.primaryColor.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  if (isAvailable)
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                ],
               ),
               child: Center(
                 child: Text(
@@ -354,33 +443,123 @@ class _EquationBuilderGameState extends State<EquationBuilderGame> {
 
   Widget _buildOperatorPad() {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: operators.map((operator) {
-          return InkWell(
-            onTap: () => _addOperator(operator),
+        children: [
+          ...operators.map((operator) {
+            return InkWell(
+              onTap: () => _addOperator(operator),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: AppTheme.secondaryColor.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.secondaryColor.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    operator,
+                    style: GoogleFonts.poppins(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ).animate().scale(duration: 200.ms);
+          }).toList(),
+          InkWell(
+            onTap: hintsRemaining > 0 ? _useHint : null,
             borderRadius: BorderRadius.circular(8),
             child: Container(
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: AppTheme.secondaryColor.withOpacity(0.4),
+                color: hintsRemaining > 0
+                    ? AppTheme.accentColor.withOpacity(0.8)
+                    : Colors.grey.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  if (hintsRemaining > 0)
+                    BoxShadow(
+                      color: AppTheme.accentColor.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                ],
               ),
-              child: Center(
-                child: Text(
-                  operator,
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onPrimary,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    color: Colors.white,
+                    size: 24,
                   ),
-                ),
+                  Text(
+                    hintsRemaining.toString(),
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ).animate().scale(duration: 200.ms);
-        }).toList(),
+          ).animate().scale(duration: 200.ms),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: color,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

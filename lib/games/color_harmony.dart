@@ -45,7 +45,6 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
   late List<String> hints;
   late int timeLimit;
   int currentPattern = 0;
-  int score = 0;
   int streak = 0;
   int attempts = 0;
   bool showHint = false;
@@ -53,12 +52,24 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
   Color? selectedColor;
   late List<bool> patternCompleted;
   late ColorWheel colorWheel;
+  int hintsRemaining = 3;
+  bool showTutorial = true;
 
   @override
   void initState() {
     super.initState();
     _initializeGame();
     colorWheel = const ColorWheel();
+
+    // Start game with controller
+    widget.gameController.startGame(
+      timeLimit: timeLimit,
+      maxLevels: patterns.length,
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showTutorialDialog();
+    });
   }
 
   void _initializeGame() {
@@ -150,12 +161,14 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
     final baseScore = 100;
     final streakBonus = streak * 20;
     final attemptsDeduction = (attempts - 1) * 10;
-    final timeBonus = (timeLimit / 2).round();
+    final timeBonus = (widget.gameController.timeRemaining / 2).round();
 
     final patternScore =
         math.max(0, baseScore + streakBonus + timeBonus - attemptsDeduction);
-    score += patternScore;
-    widget.gameController.updateScore(score);
+    widget.gameController
+        .updateScore(widget.gameController.score + patternScore);
+
+    _showFeedback(true, patternScore);
 
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
@@ -165,6 +178,7 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
         selectedColor = null;
         if (currentPattern < patterns.length - 1) {
           currentPattern++;
+          widget.gameController.nextLevel();
         } else {
           widget.gameController.completeGame();
         }
@@ -174,12 +188,120 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
 
   void handleIncorrectAnswer() {
     streak = 0;
+    _showFeedback(false, 0);
+
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
       setState(() {
         isAnimating = false;
         selectedColor = null;
       });
+    });
+  }
+
+  void _showTutorialDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'How to Play Color Harmony',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '1. Identify the color harmony pattern shown (complementary, triadic, or monochromatic)',
+              style: GoogleFonts.poppins(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '2. Select a color from the color wheel that would complete the pattern',
+              style: GoogleFonts.poppins(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '3. Use hints if you get stuck',
+              style: GoogleFonts.poppins(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '4. The more patterns you complete correctly, the higher your score!',
+              style: GoogleFonts.poppins(),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              setState(() {
+                showTutorial = false;
+              });
+            },
+            child: Text(
+              'Got it!',
+              style: GoogleFonts.poppins(
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFeedback(bool isCorrect, int points) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isCorrect ? Icons.check_circle : Icons.error,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isCorrect ? 'Correct! +$points points' : 'Try again!',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor:
+            isCorrect ? AppTheme.correctAnswerColor : AppTheme.wrongAnswerColor,
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  void _useHint() {
+    if (hintsRemaining <= 0) return;
+
+    setState(() {
+      hintsRemaining--;
+      showHint = true;
+    });
+
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() {
+          showHint = false;
+        });
+      }
     });
   }
 
@@ -201,38 +323,101 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
   }
 
   Widget _buildHeader() {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildScoreDisplay(),
+              _buildTimeDisplay(),
+            ],
+          ),
+          _buildControlButtons(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoreDisplay() {
+    return AnimatedBuilder(
+      animation: widget.gameController,
+      builder: (context, _) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.accentColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
             children: [
               const Icon(
                 Icons.stars_rounded,
                 color: AppTheme.accentColor,
-                size: 24,
+                size: 20,
               ),
               const SizedBox(width: 8),
               Text(
-                'Score: $score',
+                'Score: ${widget.gameController.score}',
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onPrimary,
+                  color: AppTheme.accentColor,
                 ),
               ),
             ],
           ),
-          IconButton(
-            icon: Icon(
-              showHint ? Icons.lightbulb : Icons.lightbulb_outline,
-              color: AppTheme.accentColor,
-            ),
-            onPressed: () => setState(() => showHint = !showHint),
+        );
+      },
+    );
+  }
+
+  Widget _buildTimeDisplay() {
+    return AnimatedBuilder(
+      animation: widget.gameController,
+      builder: (context, _) {
+        final minutes = (widget.gameController.timeRemaining ~/ 60)
+            .toString()
+            .padLeft(2, '0');
+        final seconds = (widget.gameController.timeRemaining % 60)
+            .toString()
+            .padLeft(2, '0');
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              const Icon(Icons.timer, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                '$minutes:$seconds',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildControlButtons() {
+    return Row(
+      children: [
+        TextButton.icon(
+          onPressed: hintsRemaining > 0 ? _useHint : null,
+          label: Text('Hint ($hintsRemaining)'),
+          icon: const Icon(Icons.lightbulb),
+        )
+      ],
     );
   }
 
@@ -256,6 +441,7 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -325,7 +511,7 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
       ),
     ).animate(
       effects: [
-        if (color != null)
+        if (color != null && color == selectedColor)
           const ShakeEffect(
             duration: Duration(milliseconds: 500),
             curve: Curves.easeInOut,
@@ -335,11 +521,24 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
   }
 
   Widget _buildColorWheel() {
-    return SizedBox(
-      height: 200,
-      child: ColorWheel(
-        onColorSelected: (color) => checkAnswer(color),
-      ),
+    return Column(
+      children: [
+        Text(
+          'Select a color to complete the pattern',
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 200,
+          child: ColorWheel(
+            onColorSelected: (color) => checkAnswer(color),
+          ),
+        ),
+      ],
     );
   }
 
@@ -356,7 +555,7 @@ class _ColorHarmonyGameState extends State<ColorHarmonyGame> {
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onPrimary,
+                  color: Colors.white,
                 ),
               ),
               Text(

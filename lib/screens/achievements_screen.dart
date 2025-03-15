@@ -1,17 +1,65 @@
+import 'package:drift/drift.dart' show leftOuterJoin;
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../providers/common.dart';
 import '../theme/app_theme.dart';
 import '../db/database.dart';
 
-// Providers
-final achievementsProvider = StreamProvider<List<Achievement>>((ref) {
+// Updated providers to get all achievements
+final allAchievementsProvider = FutureProvider<List<Achievement>>((ref) async {
   final database = ref.watch(databaseProvider);
-  return database.watchUnlockedAchievements();
+  return database.select(database.achievements).get();
 });
+
+// Provider for unlocked achievements with user data
+final unlockedAchievementsProvider =
+    StreamProvider<List<AchievementWithProgress>>((ref) async* {
+  final database = ref.watch(databaseProvider);
+
+  final query = database.select(database.achievements).join([
+    leftOuterJoin(
+      database.userAchievements,
+      database.userAchievements.achievementId
+          .equalsExp(database.achievements.id),
+    ),
+  ]);
+
+  await for (final rows in query.watch()) {
+    final results = <AchievementWithProgress>[];
+
+    for (final row in rows) {
+      final achievement = row.readTable(database.achievements);
+      final userAchievement = row.readTableOrNull(database.userAchievements);
+
+      results.add(AchievementWithProgress(
+        achievement: achievement,
+        unlockedAt: userAchievement?.unlockedAt,
+        isCollected: userAchievement?.isCollected ?? false,
+      ));
+    }
+
+    yield results;
+  }
+});
+
+// Model to hold achievement with unlock status
+class AchievementWithProgress {
+  final Achievement achievement;
+  final DateTime? unlockedAt;
+  final bool isCollected;
+
+  const AchievementWithProgress({
+    required this.achievement,
+    this.unlockedAt,
+    this.isCollected = false,
+  });
+
+  bool get isUnlocked => unlockedAt != null;
+}
 
 class AchievementsScreen extends ConsumerWidget {
   const AchievementsScreen({super.key});
@@ -77,94 +125,100 @@ class AchievementsScreen extends ConsumerWidget {
   }
 
   Widget _buildAchievementStats(BuildContext context, WidgetRef ref) {
-    final achievementsAsync = ref.watch(achievementsProvider);
+    final unlockedAchievementsAsync = ref.watch(unlockedAchievementsProvider);
+    final allAchievementsAsync = ref.watch(allAchievementsProvider);
 
     return SliverToBoxAdapter(
-      child: achievementsAsync.when(
-        data: (achievements) {
-          final totalAchievements = achievements.length;
-          final unlockedAchievements = achievements
-              .where((a) => achievements.any((ua) => ua.id == a.id))
-              .length;
-          final progress = totalAchievements != 0
-              ? unlockedAchievements / totalAchievements
-              : 0;
+      child: unlockedAchievementsAsync.when(
+        data: (unlockedAchievements) {
+          return allAchievementsAsync.when(
+            data: (allAchievements) {
+              final totalAchievements = allAchievements.length;
+              final unlockedCount =
+                  unlockedAchievements.where((a) => a.isUnlocked).length;
+              final progress = totalAchievements > 0
+                  ? unlockedCount / totalAchievements
+                  : 0.0;
 
-          return Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Progress',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '${(progress * 100).toInt()}%',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.accentColor,
-                      ),
+              return Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: progress.toDouble(),
-                    backgroundColor: AppTheme.neutralGray.withOpacity(0.2),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppTheme.accentColor,
-                    ),
-                    minHeight: 8,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                child: Column(
                   children: [
-                    _buildStatItem(
-                      context,
-                      'Total',
-                      totalAchievements.toString(),
-                      Icons.stars_rounded,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Progress',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${(progress * 100).toInt()}%',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.accentColor,
+                          ),
+                        ),
+                      ],
                     ),
-                    _buildStatItem(
-                      context,
-                      'Unlocked',
-                      unlockedAchievements.toString(),
-                      Icons.lock_open_rounded,
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: AppTheme.neutralGray.withOpacity(0.2),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppTheme.accentColor,
+                        ),
+                        minHeight: 8,
+                      ),
                     ),
-                    _buildStatItem(
-                      context,
-                      'Locked',
-                      (totalAchievements - unlockedAchievements).toString(),
-                      Icons.lock_rounded,
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildStatItem(
+                          context,
+                          'Total',
+                          totalAchievements.toString(),
+                          Icons.stars_rounded,
+                        ),
+                        _buildStatItem(
+                          context,
+                          'Unlocked',
+                          unlockedCount.toString(),
+                          Icons.lock_open_rounded,
+                        ),
+                        _buildStatItem(
+                          context,
+                          'Locked',
+                          (totalAchievements - unlockedCount).toString(),
+                          Icons.lock_rounded,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ).animate().fadeIn(duration: AppTheme.mediumAnimation);
+              ).animate().fadeIn(duration: AppTheme.mediumAnimation);
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(child: Text('Error: $error')),
+          );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(child: Text('Error: $error')),
@@ -209,24 +263,76 @@ class AchievementsScreen extends ConsumerWidget {
   }
 
   Widget _buildAchievementList(BuildContext context, WidgetRef ref) {
-    final achievementsAsync = ref.watch(achievementsProvider);
+    final achievementsAsync = ref.watch(unlockedAchievementsProvider);
 
     return achievementsAsync.when(
-      data: (achievements) => SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final achievement = achievements[index];
-            return _AchievementCard(
-              achievement: achievement,
-              index: index,
-            ).animate().fadeIn(
-                  duration: AppTheme.quickAnimation,
-                  delay: Duration(milliseconds: 50 * index),
-                );
-          },
-          childCount: achievements.length,
-        ),
-      ),
+      data: (achievements) {
+        if (achievements.isEmpty) {
+          return SliverFillRemaining(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.emoji_events_outlined,
+                    size: 64,
+                    color: AppTheme.neutralGray.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No achievements yet',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.neutralGray,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Keep playing to unlock achievements!',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: AppTheme.neutralGray,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Sort achievements: unlocked first, then by unlock date (newest first)
+        final sortedAchievements =
+            List<AchievementWithProgress>.from(achievements)
+              ..sort((a, b) {
+                if (a.isUnlocked && !b.isUnlocked) return -1;
+                if (!a.isUnlocked && b.isUnlocked) return 1;
+
+                // If both unlocked, sort by date (newest first)
+                if (a.isUnlocked && b.isUnlocked) {
+                  return b.unlockedAt!.compareTo(a.unlockedAt!);
+                }
+
+                // If both locked, sort by name
+                return a.achievement.name.compareTo(b.achievement.name);
+              });
+
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final achievement = sortedAchievements[index];
+              return _AchievementCard(
+                achievement: achievement,
+                index: index,
+              ).animate().fadeIn(
+                    duration: AppTheme.quickAnimation,
+                    delay: Duration(milliseconds: 50 * index),
+                  );
+            },
+            childCount: sortedAchievements.length,
+          ),
+        );
+      },
       loading: () => const SliverFillRemaining(
         child: Center(child: CircularProgressIndicator()),
       ),
@@ -238,7 +344,7 @@ class AchievementsScreen extends ConsumerWidget {
 }
 
 class _AchievementCard extends StatelessWidget {
-  final Achievement achievement;
+  final AchievementWithProgress achievement;
   final int index;
 
   const _AchievementCard({
@@ -248,7 +354,7 @@ class _AchievementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isUnlocked = true; // Replace with actual unlock status
+    final isUnlocked = achievement.isUnlocked;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -261,21 +367,22 @@ class _AchievementCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              _buildAchievementIcon(isUnlocked),
+              _buildAchievementIcon(
+                  isUnlocked, achievement.achievement.iconName),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      achievement.name,
+                      achievement.achievement.name,
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      achievement.description,
+                      achievement.achievement.description,
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         color: Theme.of(context)
@@ -296,7 +403,7 @@ class _AchievementCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Unlocked on 29 Nov 2024',
+                            'Unlocked on ${_formatDate(achievement.unlockedAt!)}',
                             style: GoogleFonts.poppins(
                               fontSize: 10,
                               color: AppTheme.primaryColor,
@@ -315,7 +422,10 @@ class _AchievementCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAchievementIcon(bool isUnlocked) {
+  Widget _buildAchievementIcon(bool isUnlocked, String iconName) {
+    // Map the iconName to an IconData if possible, or use a default
+    IconData iconData = _getIconData(iconName);
+
     return Container(
       width: 60,
       height: 60,
@@ -337,12 +447,35 @@ class _AchievementCard extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(
-        Icons.emoji_events_rounded,
+      child: Icon(
+        iconData,
         color: Colors.white,
         size: 32,
       ),
     );
+  }
+
+  IconData _getIconData(String iconName) {
+    // Map the iconName string to actual IconData
+    switch (iconName) {
+      case 'stars':
+        return Icons.stars;
+      case 'star_beginner':
+      case 'star_expert':
+        return Icons.star;
+      case 'timer':
+        return Icons.timer;
+      case 'grade':
+        return Icons.grade;
+      case 'workspace_premium':
+        return Icons.workspace_premium;
+      default:
+        return Icons.emoji_events_rounded;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return DateFormat('d MMM yyyy').format(date);
   }
 }
 

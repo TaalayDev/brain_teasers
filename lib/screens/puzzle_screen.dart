@@ -55,6 +55,7 @@ final puzzleProvider =
 final puzzleProgressProvider =
     FutureProvider.family<UserProgressData?, String>((ref, id) {
   final database = ref.read(databaseProvider);
+
   return database.getProgressForPuzzle(int.parse(id));
 });
 
@@ -115,30 +116,44 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
         onLevelComplete: (level) {
           _updateProgress();
         },
-        onStateChange: (state) {},
+        onStateChange: (state) {
+          if (state == GameState.gameOver) {
+            _updateProgress();
+          }
+        },
       ),
     ));
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
-        child: Consumer(
-          builder: (context, ref, child) {
-            final puzzleAsync = ref.watch(puzzleProvider(widget.puzzleId));
-
-            return puzzleAsync.when(
-              data: (rec) => _buildPuzzleContent(
-                context,
-                rec.puzzle,
-                rec.progress,
-              ),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stack) => _buildErrorState(
-                context,
-                error,
-                stack,
-              ),
-            );
+        child: WillPopScope(
+          onWillPop: () async {
+            if (_gameController.isPlaying) {
+              _gameController.pauseGame();
+              return false;
+            }
+            return true;
           },
+          child: Consumer(
+            builder: (context, ref, child) {
+              final puzzleAsync = ref.watch(puzzleProvider(widget.puzzleId));
+
+              return puzzleAsync.when(
+                data: (rec) => _buildPuzzleContent(
+                  context,
+                  rec.puzzle,
+                  rec.progress,
+                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) => _buildErrorState(
+                  context,
+                  error,
+                  stack,
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -201,11 +216,14 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  puzzle.name,
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    puzzle.name,
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 Text(
@@ -218,6 +236,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
               ],
             ),
           ),
+          const SizedBox(width: 8),
           TextButton.icon(
             onPressed: _gameController.pauseGame,
             icon: const Icon(Icons.pause),

@@ -34,22 +34,31 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
   late int _differences;
   late Map<String, int> _gridSize;
   late List<Point> _differenceLocations;
+  int _hintsRemaining = 3;
+  bool _isShowingHint = false;
+  int _streak = 0;
 
   @override
   void initState() {
     super.initState();
     _initializeGame();
-    _startTimer();
   }
 
   void _initializeGame() {
     _levels = List<Map<String, dynamic>>.from(widget.gameData['levels']);
-    _currentLevel = 0;
+    _currentLevel = widget.gameController.currentLevel;
     _score = 0;
-    _remainingTime = widget.gameData['timeLimit'];
+    _remainingTime = widget.gameData['timeLimit'] ?? 180;
     _isTimerRunning = true;
     _foundDifferences = {};
     _loadLevel();
+
+    // Start the game with controller
+    widget.gameController.startGame(
+      timeLimit: _remainingTime,
+      level: _currentLevel,
+      maxLevels: _levels.length,
+    );
   }
 
   void _loadLevel() {
@@ -91,26 +100,6 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
     }
   }
 
-  void _startTimer() {
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted && _isTimerRunning) {
-        setState(() {
-          _remainingTime--;
-          if (_remainingTime <= 0) {
-            _handleTimeUp();
-          } else {
-            _startTimer();
-          }
-        });
-      }
-    });
-  }
-
-  void _handleTimeUp() {
-    _isTimerRunning = false;
-    widget.gameController.completeGame();
-  }
-
   void _checkTile(int x, int y, bool isLeftGrid) {
     if (!_isTimerRunning) return;
 
@@ -120,19 +109,31 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
     if (_differenceLocations.contains(Point(x, y))) {
       setState(() {
         _foundDifferences.add(key);
-        _score +=
-            (100 * (_remainingTime / widget.gameData['timeLimit'])).round();
+        _streak++;
+
+        // Calculate points based on streak
+        final basePoints = 100;
+        final streakBonus = _streak * 10;
+        final timeBonus = (widget.gameController.timeRemaining / 10).round();
+        final totalPoints = basePoints + streakBonus + timeBonus;
+
+        _score += totalPoints;
         widget.gameController.updateScore(_score);
+        widget.gameController.updateStreak(true);
 
         if (_foundDifferences.length == _differences) {
           _handleLevelComplete();
         }
       });
+
+      _showFeedback(true, 1);
     } else {
       // Penalty for wrong guess
       setState(() {
         _score = math.max(0, _score - 10);
+        _streak = 0;
         widget.gameController.updateScore(_score);
+        widget.gameController.updateStreak(false);
       });
       _showFeedback(false);
     }
@@ -140,11 +141,11 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
 
   void _handleLevelComplete() {
     if (_currentLevel < _levels.length - 1) {
-      _showFeedback(true);
+      widget.gameController.nextLevel();
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           setState(() {
-            _currentLevel++;
+            _currentLevel = widget.gameController.currentLevel;
             _foundDifferences.clear();
             _loadLevel();
           });
@@ -156,11 +157,11 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
     }
   }
 
-  void _showFeedback(bool success) {
+  void _showFeedback(bool success, [int points = 0]) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          success ? 'Level Complete!' : 'Try Again!',
+          success ? 'Found a difference! +$points points' : 'Try Again!',
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -173,15 +174,63 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
     );
   }
 
+  void _useHint() {
+    if (_hintsRemaining <= 0) return;
+
+    setState(() {
+      _hintsRemaining--;
+      _isShowingHint = true;
+
+      // Highlight a random unfound difference
+      final unfoundDifferences = _differenceLocations
+          .where(
+              (point) => !_foundDifferences.contains('${point.x},${point.y}'))
+          .toList();
+
+      if (unfoundDifferences.isNotEmpty) {
+        final randomDiff = unfoundDifferences[
+            math.Random().nextInt(unfoundDifferences.length)];
+        // Trigger a visual hint for this difference
+        _showHintAt(randomDiff);
+      }
+    });
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _isShowingHint = false;
+        });
+      }
+    });
+  }
+
+  void _showHintAt(Point point) {
+    // This would be implemented to show a visual hint at the specified point
+    // For now, we'll just show the snackbar message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Look around position (${point.x}, ${point.y})',
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: AppTheme.accentColor,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GameContainer(
       child: Column(
         children: [
           _buildHeader(),
-          const Spacer(),
-          _buildGrids(),
-          const Spacer(),
+          Expanded(
+            child: _buildGrids(),
+          ),
           _buildProgress(),
         ],
       ),
@@ -191,47 +240,184 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Level ${_currentLevel + 1}/${_levels.length}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                  Text(
+                    'Find ${_differences - _foundDifferences.length} differences',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+              _buildStatCards(),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildControlButtons(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCards() {
+    return Row(
+      children: [
+        _buildStatCard(
+          icon: Icons.bolt,
+          label: 'Streak',
+          value: _streak.toString(),
+          color: AppTheme.accentColor,
+        ),
+        const SizedBox(width: 8),
+        _buildTimeDisplay(),
+      ],
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 4),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Level ${_currentLevel + 1}/${_levels.length}',
+                label,
                 style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onPrimary,
+                  fontSize: 10,
+                  color: color,
                 ),
               ),
               Text(
-                'Find ${_differences - _foundDifferences.length} differences',
+                value,
                 style: GoogleFonts.poppins(
                   fontSize: 14,
-                  color: AppTheme.primaryColor,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              const Icon(Icons.timer, color: AppTheme.accentColor),
-              const SizedBox(width: 8),
-              Text(
-                _formatTime(_remainingTime),
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: _remainingTime < 30
-                      ? AppTheme.wrongAnswerColor
-                      : Theme.of(context).colorScheme.onPrimary,
+                  color: color,
                 ),
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTimeDisplay() {
+    return AnimatedBuilder(
+      animation: widget.gameController,
+      builder: (context, child) {
+        final timeLeft = widget.gameController.timeRemaining;
+        final minutes = (timeLeft ~/ 60).toString().padLeft(2, '0');
+        final seconds = (timeLeft % 60).toString().padLeft(2, '0');
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.timer, color: Colors.amber, size: 16),
+              const SizedBox(width: 4),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Time',
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      color: Colors.amber,
+                    ),
+                  ),
+                  Text(
+                    '$minutes:$seconds',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: timeLeft < 30
+                          ? AppTheme.wrongAnswerColor
+                          : Colors.amber,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildControlButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _hintsRemaining > 0 ? _useHint : null,
+            icon: const Icon(Icons.lightbulb_outline),
+            label: Text('Use Hint (${_hintsRemaining})'),
+            style: ElevatedButton.styleFrom(
+              foregroundColor: Colors.amber,
+              backgroundColor: Colors.amber.withOpacity(0.1),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              disabledForegroundColor: Colors.grey.withOpacity(0.5),
+              disabledBackgroundColor: Colors.grey.withOpacity(0.1),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.star, color: AppTheme.primaryColor, size: 16),
+              const SizedBox(width: 4),
+              Text(
+                _score.toString(),
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -280,6 +466,9 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
   Widget _buildTile(int x, int y, String element, bool isLeftGrid) {
     final key = '$x,$y';
     final isDifferenceFound = _foundDifferences.contains(key);
+    final isDifferenceHinted = _isShowingHint &&
+        _differenceLocations.contains(Point(x, y)) &&
+        !_foundDifferences.contains(key);
 
     return GestureDetector(
       onTap: () => _checkTile(x, y, isLeftGrid),
@@ -287,17 +476,25 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
         decoration: BoxDecoration(
           color: isDifferenceFound
               ? AppTheme.correctAnswerColor.withOpacity(0.2)
-              : Colors.white,
+              : isDifferenceHinted
+                  ? AppTheme.accentColor.withOpacity(0.2)
+                  : Colors.white,
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
             color: isDifferenceFound
                 ? AppTheme.correctAnswerColor
-                : AppTheme.primaryColor.withOpacity(0.3),
-            width: 1,
+                : isDifferenceHinted
+                    ? AppTheme.accentColor
+                    : AppTheme.primaryColor.withOpacity(0.3),
+            width: isDifferenceFound || isDifferenceHinted ? 2 : 1,
           ),
         ),
         child: Center(
-          child: _buildElementIcon(element, isDifferenceFound),
+          child: _buildElementIcon(
+            element,
+            isDifferenceFound,
+            isDifferenceHinted,
+          ),
         ),
       ),
     ).animate(
@@ -307,11 +504,17 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
             duration: Duration(milliseconds: 500),
             curve: Curves.easeInOut,
           ),
+        // if (isDifferenceHinted)
+        //   const PulseEffect(
+        //     duration: Duration(milliseconds: 1000),
+        //     curve: Curves.easeInOut,
+        //   ),
       ],
     );
   }
 
-  Widget _buildElementIcon(String element, bool isDifferenceFound) {
+  Widget _buildElementIcon(
+      String element, bool isDifferenceFound, bool isDifferenceHinted) {
     IconData iconData;
     switch (element) {
       case 'circle':
@@ -336,11 +539,18 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
         iconData = Icons.help_outline;
     }
 
+    Color iconColor;
+    if (isDifferenceFound) {
+      iconColor = AppTheme.correctAnswerColor;
+    } else if (isDifferenceHinted) {
+      iconColor = AppTheme.accentColor;
+    } else {
+      iconColor = AppTheme.primaryColor;
+    }
+
     return Icon(
       iconData,
-      color: isDifferenceFound
-          ? AppTheme.correctAnswerColor
-          : AppTheme.primaryColor,
+      color: iconColor,
       size: 24,
     );
   }
@@ -354,20 +564,11 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'Score: $_score',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
-              const SizedBox(width: 24),
-              Text(
                 'Found: ${_foundDifferences.length}/$_differences',
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onPrimary,
+                  color: Colors.white.withOpacity(0.8),
                 ),
               ),
             ],
@@ -377,16 +578,12 @@ class _SpotDifferenceGameState extends State<SpotDifferenceGame> {
             value: _foundDifferences.length / _differences,
             backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
             valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(4),
           ),
         ],
       ),
     );
-  }
-
-  String _formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 }
 

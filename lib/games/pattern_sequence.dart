@@ -336,13 +336,19 @@ class _PatternSequenceGameState extends State<PatternSequenceGame> {
     final selectedValue = _selectedAnswers[_currentSequence];
     final isTarget = value == null;
 
+    final size = MediaQuery.sizeOf(context);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: size.width / 7,
+            height: size.width / 7,
+            constraints: const BoxConstraints(
+              maxWidth: 80,
+              maxHeight: 80,
+            ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,

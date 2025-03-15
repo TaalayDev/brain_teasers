@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class GameControllerParams extends Equatable {
@@ -135,8 +136,14 @@ class GameController extends ChangeNotifier {
     _currentLevel = level ?? _currentLevel;
 
     _startTimer();
-    notifyListeners();
-    onStateChange?.call(_state);
+    // Notify listeners on the next frame
+    // to avoid calling setState() during build
+    // https://flutter.dev/docs/development/data-and-backend/state-mgmt/simple#notifylisteners
+    // https://api.flutter.dev/flutter/scheduler/SchedulerBinding/addPostFrameCallback.html
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+      onStateChange?.call(_state);
+    });
   }
 
   void pauseGame() {
@@ -187,8 +194,10 @@ class GameController extends ChangeNotifier {
   // Score and progress methods
   void updateScore(int points) {
     _score += points;
-    onScoreUpdate?.call(_score);
-    notifyListeners();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      onScoreUpdate?.call(_score);
+      notifyListeners();
+    });
   }
 
   void incrementMoves() {
