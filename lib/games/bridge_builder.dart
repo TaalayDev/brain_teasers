@@ -1,5 +1,5 @@
 import 'package:brain_teasers/games/components/goal.dart';
-import 'package:brain_teasers/utils/boundaries.dart';
+import 'package:brain_teasers/core/utils/boundaries.dart';
 import 'package:flame/camera.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';

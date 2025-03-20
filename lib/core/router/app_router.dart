@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-import '../screens/splash_screen.dart';
-import '../screens/home_screen.dart';
-import '../screens/puzzle_catalog_screen.dart';
-import '../screens/puzzle_screen.dart';
-import '../screens/achievements_screen.dart';
-import '../screens/settings_screen.dart';
-import '../screens/statistics_screen.dart';
+import '../../ui/screens/splash_screen.dart';
+import '../../ui/screens/home_screen.dart';
+import '../../ui/screens/puzzle_catalog_screen.dart';
+import '../../ui/screens/puzzle_screen.dart';
+import '../../ui/screens/achievements_screen.dart';
+import '../../ui/screens/settings_screen.dart';
+import '../../ui/screens/statistics_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return AppRouter.router;

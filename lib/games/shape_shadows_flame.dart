@@ -6,7 +6,7 @@ import 'package:flame/components.dart' hide Timer;
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
-import 'game_controller.dart';
+import 'controller/game_controller.dart';
 
 class ShapeShadowsGame extends World with Game, TapDetector {
   final Map<String, dynamic> gameData;

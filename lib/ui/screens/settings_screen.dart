@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../providers/common.dart';
+import '../../providers/common.dart';
+import '../../providers/sound_controller.dart';
 import '../theme/app_theme.dart';
-import '../db/database.dart';
+import '../../db/database.dart';
 
 // Providers
 final settingsProvider = StreamProvider<Map<String, String>>((ref) async* {
@@ -20,11 +22,13 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final soundController = ref.watch(soundControllerProvider);
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           _buildAppBar(),
-          _buildSettingsList(context),
+          _buildSettingsList(context, ref, soundController),
         ],
       ),
     );
@@ -41,28 +45,46 @@ class SettingsScreen extends ConsumerWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppTheme.primaryColor,
-                AppTheme.primaryColor.withOpacity(0.8),
-              ],
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.primaryColor,
+                    AppTheme.primaryColor.withOpacity(0.8),
+                  ],
+                ),
+              ),
+              child: CustomPaint(
+                painter: SettingsPatternPainter(
+                  color: Colors.white.withOpacity(0.1),
+                ),
+              ),
             ),
-          ),
-          child: CustomPaint(
-            painter: SettingsPatternPainter(
-              color: Colors.white.withOpacity(0.1),
+            Positioned(
+              right: -50,
+              bottom: -50,
+              child: Icon(
+                Feather.settings,
+                size: 200,
+                color: Colors.white.withOpacity(0.1),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSettingsList(BuildContext context) {
+  Widget _buildSettingsList(
+    BuildContext context,
+    WidgetRef ref,
+    SoundController soundController,
+  ) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -77,21 +99,43 @@ class SettingsScreen extends ConsumerWidget {
                   context,
                   title: 'Sound Effects',
                   icon: Icons.volume_up_rounded,
-                  child: _buildSettingSwitch(context, 'sound_enabled'),
+                  child: _buildSoundSwitch(context, soundController),
                 ),
                 _buildDivider(),
+                if (soundController.isSoundEnabled)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 58.0, bottom: 16),
+                    child: _buildVolumeSlider(
+                      context,
+                      value: soundController.soundVolume,
+                      onChanged: (value) =>
+                          soundController.setSoundVolume(value),
+                      onChangeEnd: (_) =>
+                          soundController.playEffect(SoundType.click),
+                    ),
+                  ),
                 _buildSettingItem(
                   context,
                   title: 'Background Music',
                   icon: Icons.music_note_rounded,
-                  child: _buildSettingSwitch(context, 'music_enabled'),
+                  child: _buildMusicSwitch(context, soundController),
                 ),
                 _buildDivider(),
+                if (soundController.isMusicEnabled)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 58.0, bottom: 16),
+                    child: _buildVolumeSlider(
+                      context,
+                      value: soundController.musicVolume,
+                      onChanged: (value) =>
+                          soundController.setMusicVolume(value),
+                    ),
+                  ),
                 _buildSettingItem(
                   context,
                   title: 'Vibration',
                   icon: Icons.vibration_rounded,
-                  child: _buildSettingSwitch(context, 'vibration_enabled'),
+                  child: _buildVibrationSwitch(context, soundController),
                 ),
               ],
             ),
@@ -161,6 +205,7 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Privacy Policy',
                   icon: Icons.privacy_tip_rounded,
                   onTap: () {
+                    soundController.playEffect(SoundType.click);
                     // Navigate to privacy policy
                   },
                 ),
@@ -170,6 +215,7 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Terms of Service',
                   icon: Icons.description_rounded,
                   onTap: () {
+                    soundController.playEffect(SoundType.click);
                     // Navigate to terms of service
                   },
                 ),
@@ -250,6 +296,88 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildVolumeSlider(
+    BuildContext context, {
+    required double value,
+    required ValueChanged<double> onChanged,
+    ValueChanged<double>? onChangeEnd,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          Icons.volume_down,
+          size: 18,
+          color:
+              Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+        ),
+        Expanded(
+          child: Slider(
+            value: value,
+            min: 0.0,
+            max: 1.0,
+            divisions: 10,
+            onChanged: onChanged,
+            onChangeEnd: onChangeEnd,
+          ),
+        ),
+        Icon(
+          Icons.volume_up,
+          size: 18,
+          color:
+              Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSoundSwitch(
+    BuildContext context,
+    SoundController soundController,
+  ) {
+    return Switch(
+      value: soundController.isSoundEnabled,
+      onChanged: (value) {
+        soundController.setSoundEnabled(value);
+        if (value) {
+          soundController.playEffect(SoundType.click);
+        }
+      },
+    );
+  }
+
+  Widget _buildMusicSwitch(
+    BuildContext context,
+    SoundController soundController,
+  ) {
+    return Switch(
+      value: soundController.isMusicEnabled,
+      onChanged: (value) {
+        soundController.setMusicEnabled(value);
+        if (value && soundController.isSoundEnabled) {
+          soundController.playEffect(SoundType.click);
+        }
+      },
+    );
+  }
+
+  Widget _buildVibrationSwitch(
+    BuildContext context,
+    SoundController soundController,
+  ) {
+    return Switch(
+      value: soundController.isVibrationEnabled,
+      onChanged: (value) {
+        soundController.setVibrationEnabled(value);
+        if (soundController.isSoundEnabled) {
+          soundController.playEffect(SoundType.click);
+        }
+        if (value) {
+          soundController.vibrate(duration: const Duration(milliseconds: 100));
+        }
+      },
     );
   }
 
@@ -429,18 +557,16 @@ class SettingsPatternPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 1
+      ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
-    const spacing = 30.0;
+    final spacing = size.width / 20;
 
-    for (var i = 0.0; i < size.width + spacing; i += spacing) {
-      for (var j = 0.0; j < size.height + spacing; j += spacing) {
-        final path = Path()
-          ..moveTo(i, j)
-          ..lineTo(i + 10, j)
-          ..moveTo(i, j)
-          ..lineTo(i, j + 10);
+    for (var i = 0; i < size.width; i += spacing.toInt()) {
+      for (var j = 0; j < size.height; j += spacing.toInt()) {
+        final path = Path();
+        path.moveTo(i.toDouble(), j.toDouble());
+        path.lineTo(i + spacing / 2, j + spacing / 2);
         canvas.drawPath(path, paint);
       }
     }

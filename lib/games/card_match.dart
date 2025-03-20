@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:math';
-import 'package:brain_teasers/utils/card_match_level.dart';
+import 'package:brain_teasers/core/utils/card_match_level.dart';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../components/game_container.dart';
-import '../theme/app_theme.dart';
-import 'game_controller.dart';
+import '../ui/components/game_container.dart';
+import '../ui/theme/app_theme.dart';
+import 'controller/game_controller.dart';
 
 class CardMatchGame extends StatefulWidget {
   final Map<String, dynamic> gameData;

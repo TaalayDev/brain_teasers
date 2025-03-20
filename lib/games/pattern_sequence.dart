@@ -4,10 +4,10 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
-import '../utils/pattern_generator.dart';
-import '../components/game_container.dart';
-import '../theme/app_theme.dart';
-import 'game_controller.dart';
+import '../core/utils/pattern_generator.dart';
+import '../ui/components/game_container.dart';
+import '../ui/theme/app_theme.dart';
+import 'controller/game_controller.dart';
 
 class PatternSequenceGame extends StatefulWidget {
   final Map<String, dynamic> gameData;

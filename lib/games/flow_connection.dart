@@ -1,11 +1,11 @@
-import 'package:brain_teasers/components/stat_card.dart';
+import 'package:brain_teasers/ui/components/stat_card.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
-import '../theme/app_theme.dart';
-import '../components/game_container.dart';
-import 'game_controller.dart';
+import '../ui/theme/app_theme.dart';
+import '../ui/components/game_container.dart';
+import 'controller/game_controller.dart';
 
 class FlowConnectGame extends StatefulWidget {
   final Map<String, dynamic> gameData;

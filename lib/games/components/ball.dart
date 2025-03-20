@@ -1,7 +1,7 @@
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
+import '../../ui/theme/app_theme.dart';
 
 class BallBody extends BodyComponent {
   final Vector2 startPosition;

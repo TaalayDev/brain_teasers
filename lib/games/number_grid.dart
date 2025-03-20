@@ -3,10 +3,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
-import '../components/game_container.dart';
-import '../components/header_container.dart';
-import '../theme/app_theme.dart';
-import 'game_controller.dart';
+import '../ui/components/game_container.dart';
+import '../ui/components/header_container.dart';
+import '../ui/theme/app_theme.dart';
+import 'controller/game_controller.dart';
 
 class NumberGridGame extends StatefulWidget {
   final Map<String, dynamic> gameData;

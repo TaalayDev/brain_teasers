@@ -3,10 +3,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
-import '../components/game_container.dart';
-import '../components/color_wheel.dart';
-import '../theme/app_theme.dart';
-import 'game_controller.dart';
+import '../ui/components/game_container.dart';
+import '../ui/components/color_wheel.dart';
+import '../ui/theme/app_theme.dart';
+import 'controller/game_controller.dart';
 
 enum ColorRule {
   complementary,

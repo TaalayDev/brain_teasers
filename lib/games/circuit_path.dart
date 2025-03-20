@@ -4,9 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:math' as math;
 
-import '../components/game_container.dart';
-import '../components/header_container.dart';
-import '../theme/app_theme.dart';
+import '../ui/components/game_container.dart';
+import '../ui/components/header_container.dart';
+import '../ui/theme/app_theme.dart';
 
 class CircuitPathGame extends ConsumerStatefulWidget {
   final Map<String, dynamic> gameData;

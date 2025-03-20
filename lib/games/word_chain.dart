@@ -5,9 +5,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 
-import '../components/game_container.dart';
-import '../theme/app_theme.dart';
-import 'game_controller.dart';
+import '../ui/components/game_container.dart';
+import '../ui/theme/app_theme.dart';
+import 'controller/game_controller.dart';
 
 class WordChainGame extends StatefulWidget {
   final Map<String, dynamic> gameData;

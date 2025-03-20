@@ -5,8 +5,8 @@ import 'package:flame/particles.dart';
 import 'package:flame_forge2d/flame_forge2d.dart' hide Particle;
 import 'dart:math' as math;
 
-import '../theme/app_theme.dart';
-import 'game_controller.dart';
+import '../ui/theme/app_theme.dart';
+import 'controller/game_controller.dart';
 
 class MultipleObjectTrackingGame extends Forge2DGame {
   final Map<String, dynamic> gameData;

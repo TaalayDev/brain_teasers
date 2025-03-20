@@ -3,7 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
-import '../theme/app_theme.dart';
+import '../ui/theme/app_theme.dart';
 
 class ShapeShadowsGame extends StatefulWidget {
   final Map<String, dynamic> gameData;

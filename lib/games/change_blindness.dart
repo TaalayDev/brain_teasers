@@ -5,8 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import 'dart:async';
 
-import '../theme/app_theme.dart';
-import 'game_controller.dart';
+import '../ui/theme/app_theme.dart';
+import 'controller/game_controller.dart';
 
 class ChangeBlindnessGame extends StatefulWidget {
   final Map<String, dynamic> gameData;

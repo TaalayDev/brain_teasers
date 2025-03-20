@@ -5,11 +5,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../utils/screen_size.dart';
-import '../utils/extensions.dart';
-import '../providers/common.dart';
+import '../../core/utils/screen_size.dart';
+import '../../core/utils/extensions.dart';
+import '../../providers/common.dart';
 import '../theme/app_theme.dart';
-import '../db/database.dart';
+import '../../db/database.dart';
 
 final userStatsProvider = FutureProvider<Map<String, dynamic>>((ref) {
   final database = ref.watch(databaseProvider);

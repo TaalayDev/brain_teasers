@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flame_forge2d/flame_forge2d.dart' hide Particle;
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
+import '../../ui/theme/app_theme.dart';
 
 class GoalBody extends BodyComponent {
   double _pulseValue = 0.0;

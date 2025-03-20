@@ -6,10 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../components/game_container.dart';
-import '../components/particle_system.dart';
-import '../theme/app_theme.dart';
-import 'game_controller.dart';
+import '../ui/components/game_container.dart';
+import '../ui/components/particle_system.dart';
+import '../ui/theme/app_theme.dart';
+import 'controller/game_controller.dart';
 
 class PatternRecallGame extends StatefulWidget {
   final Map<String, dynamic> gameData;

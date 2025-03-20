@@ -6,10 +6,10 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
-import '../utils/extensions.dart';
-import '../providers/common.dart';
+import '../../core/utils/extensions.dart';
+import '../../providers/common.dart';
 import '../theme/app_theme.dart';
-import '../db/database.dart';
+import '../../db/database.dart';
 
 // Providers
 final selectedCategoryProvider = StateProvider<int?>((ref) => null);

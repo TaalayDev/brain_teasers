@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:async';
 
-import '../theme/app_theme.dart';
-import 'game_controller.dart';
+import '../ui/theme/app_theme.dart';
+import 'controller/game_controller.dart';
 
 class PendulumPuzzleGame extends Forge2DGame {
   final Map<String, dynamic> gameData;

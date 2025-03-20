@@ -5,7 +5,7 @@ import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-import '../theme/app_theme.dart';
+import '../ui/theme/app_theme.dart';
 
 class LogicGatesGame extends Forge2DGame {
   final Function(int score) onScoreUpdate;

@@ -5,34 +5,34 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flame/game.dart' show FlameGame, GameWidget;
 import 'dart:convert';
 
-import '../games/game_controller.dart';
-import '../games/balance_ball_flame.dart';
-import '../games/card_match.dart' show CardMatchGame;
-import '../games/change_blindness.dart';
-import '../games/equation_builder.dart';
-import '../games/flow_connection.dart';
-import '../games/gravity_flow.dart';
-import '../games/light_bender.dart';
-import '../games/pendulum_puzzle.dart';
-import '../games/pic_slide.dart';
-import '../games/multiple_object_tracking.dart';
-import '../games/number_grid.dart';
-import '../games/numeric_symphony.dart';
-import '../games/pattern_mirror.dart';
-import '../games/pattern_recall.dart';
-import '../games/pattern_sequence.dart';
-import '../games/shape_shadows_flame.dart';
-import '../games/spot_the_difference.dart';
-import '../games/symbol_sequence.dart';
-import '../games/visual_search.dart';
-import '../games/word_chain.dart';
-import '../games/word_search.dart';
-import '../providers/common.dart';
+import '../../games/controller/game_controller.dart';
+import '../../games/balance_ball_flame.dart';
+import '../../games/card_match.dart' show CardMatchGame;
+import '../../games/change_blindness.dart';
+import '../../games/equation_builder.dart';
+import '../../games/flow_connection.dart';
+import '../../games/gravity_flow.dart';
+import '../../games/light_bender.dart';
+import '../../games/pendulum_puzzle.dart';
+import '../../games/pic_slide.dart';
+import '../../games/multiple_object_tracking.dart';
+import '../../games/number_grid.dart';
+import '../../games/numeric_symphony.dart';
+import '../../games/pattern_mirror.dart';
+import '../../games/pattern_recall.dart';
+import '../../games/pattern_sequence.dart';
+import '../../games/shape_shadows_flame.dart';
+import '../../games/spot_the_difference.dart';
+import '../../games/symbol_sequence.dart';
+import '../../games/visual_search.dart';
+import '../../games/word_chain.dart';
+import '../../games/word_search.dart';
+import '../../providers/common.dart';
 import '../theme/app_theme.dart';
-import '../db/database.dart';
+import '../../db/database.dart';
 import '../components/game_container.dart';
-import '../games/circuit_flow.dart';
-import '../games/color_harmony.dart';
+import '../../games/circuit_flow.dart';
+import '../../games/color_harmony.dart';
 
 typedef PuzzleRec = ({
   Puzzle puzzle,
@@ -246,14 +246,14 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
                   Theme.of(context).colorScheme.primary.withOpacity(0.1),
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.help_outline),
-            style: TextButton.styleFrom(
-              backgroundColor:
-                  Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            ),
-          ),
+          // IconButton(
+          //   onPressed: () {},
+          //   icon: const Icon(Icons.help_outline),
+          //   style: TextButton.styleFrom(
+          //     backgroundColor:
+          //         Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          //   ),
+          // ),
         ],
       ),
     );

@@ -7,8 +7,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'db/database.dart';
 import 'l10n/strings.dart';
 import 'providers/common.dart';
-import 'theme/app_theme.dart';
-import 'router/app_router.dart';
+import 'ui/theme/app_theme.dart';
+import 'core/router/app_router.dart';
 
 Future<void> main() async {
   // Ensure Flutter bindings are initialized
@@ -35,33 +35,28 @@ class BrainTeasersApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return DevicePreview(
-      enabled: kDebugMode,
-      builder: (context) {
-        return MaterialApp.router(
-          title: 'BrainTeasers',
+    return MaterialApp.router(
+      title: 'BrainTeasers',
 
-          // Theme configuration
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: ThemeMode.dark,
+      // Theme configuration
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.dark,
 
-          // Localization setup
-          localizationsDelegates: const [
-            Strings.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: Strings.supportedLocales,
+      // Localization setup
+      localizationsDelegates: const [
+        Strings.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: Strings.supportedLocales,
 
-          // Router configuration
-          routerConfig: AppRouter.router,
+      // Router configuration
+      routerConfig: AppRouter.router,
 
-          // Debug banner
-          debugShowCheckedModeBanner: false,
-        );
-      },
+      // Debug banner
+      debugShowCheckedModeBanner: false,
     );
   }
 }

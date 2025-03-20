@@ -1,10 +1,10 @@
-import 'package:brain_teasers/components/header_container.dart';
+import 'package:brain_teasers/ui/components/header_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 
-import '../theme/app_theme.dart';
+import '../ui/theme/app_theme.dart';
 
 extension on Offset {
   double distanceBetween(Offset offset) {

@@ -5,9 +5,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-import '../providers/common.dart';
+import '../../providers/common.dart';
 import '../theme/app_theme.dart';
-import '../db/database.dart';
+import '../../db/database.dart';
 
 // Updated providers to get all achievements
 final allAchievementsProvider = FutureProvider<List<Achievement>>((ref) async {

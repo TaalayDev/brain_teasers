@@ -1,13 +1,14 @@
 import 'package:drift/drift.dart' show innerJoin, OrderingTerm;
 import 'package:flutter/material.dart';
+import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 
-import '../providers/common.dart';
+import '../../providers/common.dart';
 import '../theme/app_theme.dart';
-import '../db/database.dart';
+import '../../db/database.dart';
 
 // Provider for overall user statistics
 final statisticsProvider = FutureProvider<Map<String, dynamic>>((ref) {
@@ -210,22 +211,36 @@ class StatisticsScreen extends ConsumerWidget {
             color: Colors.white,
           ),
         ),
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppTheme.secondaryColor,
-                AppTheme.secondaryColor.withOpacity(0.8),
-              ],
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.secondaryColor,
+                    AppTheme.secondaryColor.withOpacity(0.8),
+                  ],
+                ),
+              ),
+              child: CustomPaint(
+                painter: StatsPatternPainter(
+                  color: Colors.white.withOpacity(0.1),
+                ),
+              ),
             ),
-          ),
-          child: CustomPaint(
-            painter: StatsPatternPainter(
-              color: Colors.white.withOpacity(0.1),
+            Positioned(
+              right: -30,
+              bottom: -20,
+              child: Icon(
+                Feather.bar_chart_2,
+                size: 200,
+                color: Colors.white.withOpacity(0.1),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -806,25 +821,18 @@ class StatsPatternPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 1
+      ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
-    const spacing = 20.0;
+    final spacing = size.width / 20;
 
-    for (var i = 0.0; i < size.width; i += spacing) {
-      canvas.drawLine(
-        Offset(i.toDouble(), 0),
-        Offset(i.toDouble(), size.height),
-        paint,
-      );
-    }
-
-    for (var i = 0.0; i < size.height; i += spacing) {
-      canvas.drawLine(
-        Offset(0, i.toDouble()),
-        Offset(size.width, i.toDouble()),
-        paint,
-      );
+    for (var i = 0; i < size.width; i += spacing.toInt()) {
+      for (var j = 0; j < size.height; j += spacing.toInt()) {
+        final path = Path();
+        path.moveTo(i.toDouble(), j.toDouble());
+        path.lineTo(i + spacing / 2, j + spacing / 2);
+        canvas.drawPath(path, paint);
+      }
     }
   }
 

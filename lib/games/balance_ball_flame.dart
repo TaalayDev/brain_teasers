@@ -8,12 +8,12 @@ import 'package:flame/particles.dart';
 import 'dart:async';
 import 'dart:math';
 
-import '../theme/app_theme.dart';
+import '../ui/theme/app_theme.dart';
 import 'components/ball.dart';
 import 'components/collectible_star.dart';
 import 'components/goal.dart';
 import 'components/wall.dart';
-import 'game_controller.dart';
+import 'controller/game_controller.dart';
 
 class _QueryCallback implements QueryCallback {
   final bool Function(Fixture fixture) _reportFixture;
