@@ -1,9 +1,14 @@
 PODS:
+  - audio_session (0.0.1):
+    - FlutterMacOS
   - custom_mouse_cursor (0.0.1):
     - FlutterMacOS
   - file_selector_macos (0.0.1):
     - FlutterMacOS
   - FlutterMacOS (1.0.0)
+  - just_audio (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -40,9 +45,11 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
+  - audio_session (from `Flutter/ephemeral/.symlinks/plugins/audio_session/macos`)
   - custom_mouse_cursor (from `Flutter/ephemeral/.symlinks/plugins/custom_mouse_cursor/macos`)
   - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
+  - just_audio (from `Flutter/ephemeral/.symlinks/plugins/just_audio/darwin`)
   - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
   - rive_common (from `Flutter/ephemeral/.symlinks/plugins/rive_common/macos`)
   - share_plus (from `Flutter/ephemeral/.symlinks/plugins/share_plus/macos`)
@@ -56,12 +63,16 @@ SPEC REPOS:
     - sqlite3
 
 EXTERNAL SOURCES:
+  audio_session:
+    :path: Flutter/ephemeral/.symlinks/plugins/audio_session/macos
   custom_mouse_cursor:
     :path: Flutter/ephemeral/.symlinks/plugins/custom_mouse_cursor/macos
   file_selector_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
+  just_audio:
+    :path: Flutter/ephemeral/.symlinks/plugins/just_audio/darwin
   path_provider_foundation:
     :path: Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin
   rive_common:
@@ -78,9 +89,11 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
 
 SPEC CHECKSUMS:
+  audio_session: 728ae3823d914f809c485d390274861a24b0904e
   custom_mouse_cursor: 19b9cb1bcd2e792e326c15e32b48f8dba06132da
   file_selector_macos: cc3858c981fe6889f364731200d6232dac1d812d
   FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
+  just_audio: a42c63806f16995daf5b219ae1d679deb76e6a79
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   rive_common: 9580b9f1f08a8c85006083078e80479edf3db26a
   share_plus: 1fa619de8392a4398bfaf176d441853922614e89

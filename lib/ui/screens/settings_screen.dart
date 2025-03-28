@@ -423,6 +423,11 @@ class SettingsScreen extends ConsumerWidget {
               if (value != null) {
                 final database = ref.read(databaseProvider);
                 await database.setSetting('theme_mode', value);
+
+                ref.read(analyticsProvider).setUserProperty(
+                      name: 'theme_mode',
+                      value: value,
+                    );
               }
             },
           ),

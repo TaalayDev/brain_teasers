@@ -61,6 +61,7 @@ class HomeScreen extends ConsumerWidget {
                   backgroundColor: Colors.white.withOpacity(0.2),
                 ),
               ),
+              const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Feather.bar_chart_2),
                 onPressed: () => context.push('/statistics'),
@@ -68,13 +69,13 @@ class HomeScreen extends ConsumerWidget {
                   backgroundColor: Colors.white.withOpacity(0.2),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Feather.settings),
-                onPressed: () => context.push('/settings'),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                ),
-              ),
+              // IconButton(
+              //   icon: const Icon(Feather.settings),
+              //   onPressed: () => context.push('/settings'),
+              //   style: IconButton.styleFrom(
+              //     backgroundColor: Colors.white.withOpacity(0.2),
+              //   ),
+              // ),
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -468,7 +469,16 @@ class HomeScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: InkWell(
-        onTap: () => context.push('/puzzle/${puzzle.id}'),
+        onTap: () {
+          context.push('/puzzle/${puzzle.id}');
+
+          ref.read(analyticsProvider).logPuzzleStart(
+                puzzleId: puzzle.id,
+                puzzleName: puzzle.name,
+                difficulty: puzzle.difficulty,
+                category: category?.name ?? 'Unknown',
+              );
+        },
         borderRadius: BorderRadius.circular(20),
         child: Container(
           decoration: BoxDecoration(

@@ -85,6 +85,8 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
     final score = _gameController.score;
     final level = _gameController.currentLevel;
 
+    print('Updating progress: $score, $timeSpent, $isCompete, $level');
+
     final database = ref.read(databaseProvider);
     database.updateProgress(
       UserProgressCompanion.insert(

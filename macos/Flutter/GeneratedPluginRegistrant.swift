@@ -6,8 +6,8 @@ import FlutterMacOS
 import Foundation
 
 import audio_session
-import custom_mouse_cursor
-import file_selector_macos
+import firebase_analytics
+import firebase_core
 import just_audio
 import path_provider_foundation
 import rive_common
@@ -19,8 +19,8 @@ import url_launcher_macos
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   AudioSessionPlugin.register(with: registry.registrar(forPlugin: "AudioSessionPlugin"))
-  CustomMouseCursorPlugin.register(with: registry.registrar(forPlugin: "CustomMouseCursorPlugin"))
-  FileSelectorPlugin.register(with: registry.registrar(forPlugin: "FileSelectorPlugin"))
+  FLTFirebaseAnalyticsPlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseAnalyticsPlugin"))
+  FLTFirebaseCorePlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseCorePlugin"))
   JustAudioPlugin.register(with: registry.registrar(forPlugin: "JustAudioPlugin"))
   PathProviderPlugin.register(with: registry.registrar(forPlugin: "PathProviderPlugin"))
   RivePlugin.register(with: registry.registrar(forPlugin: "RivePlugin"))

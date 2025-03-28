@@ -1,54 +1,15 @@
 PODS:
-  - DKImagePickerController/Core (4.3.9):
-    - DKImagePickerController/ImageDataManager
-    - DKImagePickerController/Resource
-  - DKImagePickerController/ImageDataManager (4.3.9)
-  - DKImagePickerController/PhotoGallery (4.3.9):
-    - DKImagePickerController/Core
-    - DKPhotoGallery
-  - DKImagePickerController/Resource (4.3.9)
-  - DKPhotoGallery (0.0.19):
-    - DKPhotoGallery/Core (= 0.0.19)
-    - DKPhotoGallery/Model (= 0.0.19)
-    - DKPhotoGallery/Preview (= 0.0.19)
-    - DKPhotoGallery/Resource (= 0.0.19)
-    - SDWebImage
-    - SwiftyGif
-  - DKPhotoGallery/Core (0.0.19):
-    - DKPhotoGallery/Model
-    - DKPhotoGallery/Preview
-    - SDWebImage
-    - SwiftyGif
-  - DKPhotoGallery/Model (0.0.19):
-    - SDWebImage
-    - SwiftyGif
-  - DKPhotoGallery/Preview (0.0.19):
-    - DKPhotoGallery/Model
-    - DKPhotoGallery/Resource
-    - SDWebImage
-    - SwiftyGif
-  - DKPhotoGallery/Resource (0.0.19):
-    - SDWebImage
-    - SwiftyGif
-  - file_picker (0.0.1):
-    - DKImagePickerController/PhotoGallery
+  - audio_session (0.0.1):
     - Flutter
   - Flutter (1.0.0)
-  - image_cropper (0.0.4):
+  - just_audio (0.0.1):
     - Flutter
-    - TOCropViewController (~> 2.7.4)
-  - image_gallery_saver_plus (0.0.1):
-    - Flutter
-  - image_picker_ios (0.0.1):
-    - Flutter
+    - FlutterMacOS
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
   - rive_common (0.0.1):
     - Flutter
-  - SDWebImage (5.21.0):
-    - SDWebImage/Core (= 5.21.0)
-  - SDWebImage/Core (5.21.0)
   - sensors_plus (0.0.1):
     - Flutter
   - share_plus (0.0.1):
@@ -78,17 +39,13 @@ PODS:
     - sqlite3/fts5
     - sqlite3/perf-threadsafe
     - sqlite3/rtree
-  - SwiftyGif (5.4.5)
-  - TOCropViewController (2.7.4)
   - url_launcher_ios (0.0.1):
     - Flutter
 
 DEPENDENCIES:
-  - file_picker (from `.symlinks/plugins/file_picker/ios`)
+  - audio_session (from `.symlinks/plugins/audio_session/ios`)
   - Flutter (from `Flutter`)
-  - image_cropper (from `.symlinks/plugins/image_cropper/ios`)
-  - image_gallery_saver_plus (from `.symlinks/plugins/image_gallery_saver_plus/ios`)
-  - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
+  - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - rive_common (from `.symlinks/plugins/rive_common/ios`)
   - sensors_plus (from `.symlinks/plugins/sensors_plus/ios`)
@@ -100,24 +57,15 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
-    - DKImagePickerController
-    - DKPhotoGallery
-    - SDWebImage
     - sqlite3
-    - SwiftyGif
-    - TOCropViewController
 
 EXTERNAL SOURCES:
-  file_picker:
-    :path: ".symlinks/plugins/file_picker/ios"
+  audio_session:
+    :path: ".symlinks/plugins/audio_session/ios"
   Flutter:
     :path: Flutter
-  image_cropper:
-    :path: ".symlinks/plugins/image_cropper/ios"
-  image_gallery_saver_plus:
-    :path: ".symlinks/plugins/image_gallery_saver_plus/ios"
-  image_picker_ios:
-    :path: ".symlinks/plugins/image_picker_ios/ios"
+  just_audio:
+    :path: ".symlinks/plugins/just_audio/darwin"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
   rive_common:
@@ -136,24 +84,17 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
-  DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
-  DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
-  file_picker: 09aa5ec1ab24135ccd7a1621c46c84134bfd6655
+  audio_session: 19e9480dbdd4e5f6c4543826b2e8b0e4ab6145fe
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  image_cropper: 37d40f62177c101ff4c164906d259ea2c3aa70cf
-  image_gallery_saver_plus: 782ade975fe6a4600b53e7c1983e3a2979d1e9e5
-  image_picker_ios: c560581cceedb403a6ff17f2f816d7fea1421fc1
+  just_audio: a42c63806f16995daf5b219ae1d679deb76e6a79
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   rive_common: 4743dbfd2911c99066547a3c6454681e0fa907df
-  SDWebImage: f84b0feeb08d2d11e6a9b843cb06d75ebf5b8868
   sensors_plus: 7229095999f30740798f0eeef5cd120357a8f4f2
   share_plus: 8b6f8b3447e494cca5317c8c3073de39b3600d1f
   shared_preferences_foundation: fcdcbc04712aee1108ac7fda236f363274528f78
   sqflite_darwin: 5a7236e3b501866c1c9befc6771dfd73ffb8702d
   sqlite3: 7559e33dae4c78538df563795af3a86fc887ee71
   sqlite3_flutter_libs: 58ae36c0dd086395d066b4fe4de9cdca83e717b3
-  SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
-  TOCropViewController: 80b8985ad794298fb69d3341de183f33d1853654
   url_launcher_ios: 5334b05cef931de560670eeae103fd3e431ac3fe
 
 PODFILE CHECKSUM: 819463e6a0290f5a72f145ba7cde16e8b6ef0796

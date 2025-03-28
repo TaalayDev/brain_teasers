@@ -1,6 +1,10 @@
+import 'package:brain_teasers/firebase_options.dart';
+import 'package:brain_teasers/providers/sound_controller.dart';
 import 'package:device_preview_plus/device_preview_plus.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flame/flame.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -20,6 +24,10 @@ Future<void> main() async {
 
   final database = AppDatabase();
 
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(
     ProviderScope(
       overrides: [
@@ -30,11 +38,16 @@ Future<void> main() async {
   );
 }
 
-class BrainTeasersApp extends ConsumerWidget {
+class BrainTeasersApp extends HookConsumerWidget {
   const BrainTeasersApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    useEffect(() {
+      // ref.read(soundControllerProvider).playBgm('main_theme');
+      return null;
+    }, const []);
+
     return MaterialApp.router(
       title: 'BrainTeasers',
 
