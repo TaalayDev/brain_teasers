@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrainTeasers - Train Your Brain, One Puzzle at a Time</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2196F3;
+            --primary-dark: #1976D2;
+            --secondary-color: #673AB7;
+            --accent-color: #FF9800;
+            --correct-color: #4CAF50;
+            --wrong-color: #F44336;
+            --hint-color: #FFEB3B;
+            --neutral-gray: #9E9E9E;
+            --bg-light: #F5F5F5;
+            --bg-dark: #121212;
+            --text-dark: #333333;
+            --text-light: #FFFFFF;
+            --card-bg: #FFFFFF;
+            --card-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background-color: var(--bg-light);
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header Styles */
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--text-light);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .logo i {
+            margin-right: 0.5rem;
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+        }
+
+        .nav-links li {
+            margin-left: 2rem;
+        }
+
+        .nav-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-color);
+        }
+
+        .cta-button {
+            background-color: var(--accent-color);
+            color: var(--text-light);
+            padding: 0.5rem 1.5rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+
+        .cta-button:hover {
+            background-color: #e68a00;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--text-light);
+            padding: 4rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("/api/placeholder/1200/800");
+            background-size: cover;
+            background-position: center;
+            opacity: 0.1;
+        }
+
+        .hero-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .hero-text {
+            flex: 1;
+            padding-right: 2rem;
+        }
+
+        .hero-title {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .hero-subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .hero-cta {
+            display: inline-block;
+            background-color: var(--accent-color);
+            color: var(--text-light);
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            text-decoration: none;
+            margin-right: 1rem;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .hero-cta:hover {
+            background-color: #e68a00;
+            transform: translateY(-3px);
+        }
+
+        .hero-secondary-cta {
+            display: inline-block;
+            color: var(--text-light);
+            border: 2px solid var(--text-light);
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background-color 0.3s, color 0.3s, transform 0.3s;
+        }
+
+        .hero-secondary-cta:hover {
+            background-color: var(--text-light);
+            color: var(--primary-color);
+            transform: translateY(-3px);
+        }
+
+        .hero-image {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            position: relative;
+        }
+
+        .phone-mockup {
+            position: relative;
+            z-index: 2;
+            max-width: 300px;
+            border-radius: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .floating-elements {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .floating-element {
+            position: absolute;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            animation: float 6s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+        }
+
+        /* Features Section */
+        .features {
+            padding: 5rem 0;
+            background-color: var(--bg-light);
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            color: var(--primary-color);
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto 3rem;
+            color: var(--neutral-gray);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--text-light);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .feature-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.8rem;
+            color: var(--text-dark);
+        }
+
+        .feature-description {
+            color: var(--neutral-gray);
+            font-size: 1rem;
+        }
+
+        /* Game Categories Section */
+        .categories {
+            padding: 5rem 0;
+            background: linear-gradient(to bottom, var(--bg-light), #e6e6e6);
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+
+        .category-card {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--text-light);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+
+        .category-card:hover {
+            transform: scale(1.05);
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(255,255,255,0.1),
+                rgba(255,255,255,0.1) 10px,
+                rgba(255,255,255,0) 10px,
+                rgba(255,255,255,0) 20px
+            );
+        }
+
+        .category-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .category-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+
+        .category-description {
+            font-size: 1rem;
+            opacity: 0.9;
+            position: relative;
+        }
+
+        .category-count {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 50px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        /* Benefits Section */
+        .benefits {
+            padding: 5rem 0;
+            background-color: var(--text-light);
+        }
+
+        .benefits-container {
+            display: flex;
+            align-items: center;
+            gap: 3rem;
+        }
+
+        .benefits-image {
+            flex: 1;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+        }
+
+        .benefits-content {
+            flex: 1;
+        }
+
+        .benefits-title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        .benefits-list {
+            list-style: none;
+        }
+
+        .benefit-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+
+        .benefit-icon {
+            min-width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(33, 150, 243, 0.1);
+            color: var(--primary-color);
+            border-radius: 50%;
+            margin-right: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .benefit-text h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .benefit-text p {
+            color: var(--neutral-gray);
+            font-size: 1rem;
+        }
+
+        /* Screenshots Section */
+        .screenshots {
+            padding: 5rem 0;
+            background-color: var(--bg-light);
+        }
+
+        .screenshots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .screenshot {
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s;
+        }
+
+        .screenshot:hover {
+            transform: scale(1.05);
+        }
+
+        /* Download Section */
+        .download {
+            padding: 5rem 0;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--text-light);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .download::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("/api/placeholder/1200/800");
+            background-size: cover;
+            background-position: center;
+            opacity: 0.05;
+        }
+
+        .download-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .download-subtitle {
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto 2rem;
+            opacity: 0.9;
+            position: relative;
+        }
+
+        .download-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            position: relative;
+        }
+
+        .store-button {
+            display: flex;
+            align-items: center;
+            background-color: var(--text-light);
+            color: var(--text-dark);
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .store-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .store-icon {
+            font-size: 1.8rem;
+            margin-right: 1rem;
+        }
+
+        .store-text span {
+            display: block;
+        }
+
+        .store-text .small-text {
+            font-size: 0.8rem;
+        }
+
+        .store-text .big-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--text-dark);
+            color: var(--text-light);
+            padding: 4rem 0 1rem;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-column h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-bottom: 0.5rem;
+        }
+
+        .footer-column h3::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 2px;
+            background-color: var(--accent-color);
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 0.8rem;
+        }
+
+        .footer-links a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent-color);
+        }
+
+        .social-links {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .social-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background-color: rgba(255,255,255,0.1);
+            color: var(--text-light);
+            border-radius: 50%;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+
+        .social-link:hover {
+            background-color: var(--accent-color);
+        }
+
+        .copyright {
+            text-align: center;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* Responsive Styles */
+        @media (max-width: 992px) {
+            .hero-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .hero-text {
+                padding-right: 0;
+                margin-bottom: 2rem;
+            }
+
+            .benefits-container {
+                flex-direction: column-reverse;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .section-title {
+                font-size: 2rem;
+            }
+
+            .feature-grid,
+            .category-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .download-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .store-button {
+                width: 80%;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .hero-title {
+                font-size: 2.2rem;
+            }
+
+            .hero-subtitle {
+                font-size: 1rem;
+            }
+
+            .hero-cta,
+            .hero-secondary-cta {
+                display: block;
+                margin: 0 auto 1rem;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">
+                    <i class="fas fa-brain"></i>
+                    <span>BrainTeasers</span>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#categories">Game Types</a></li>
+                    <li><a href="#benefits">Benefits</a></li>
+                    <li><a href="#download">Download</a></li>
+                </ul>
+                <a href="#download" class="cta-button">Get Started</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-pattern"></div>
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1 class="hero-title">Train Your Brain, One Puzzle at a Time</h1>
+                    <p class="hero-subtitle">Challenge your mind with our comprehensive collection of puzzles designed to develop logical thinking, attention, and memory skills.</p>
+                    <a href="#download" class="hero-cta">Download Now</a>
+                    <a href="#features" class="hero-secondary-cta">Learn More</a>
+                </div>
+                <div class="hero-image">
+                    <img src="/api/placeholder/300/600" alt="BrainTeasers App" class="phone-mockup">
+                    <div class="floating-elements">
+                        <div class="floating-element" style="top: 10%; left: 0; width: 40px; height: 40px; animation-delay: 0s;"></div>
+                        <div class="floating-element" style="top: 20%; right: 5%; width: 50px; height: 50px; animation-delay: 1s;"></div>
+                        <div class="floating-element" style="bottom: 30%; left: 15%; width: 30px; height: 30px; animation-delay: 2s;"></div>
+                        <div class="floating-element" style="bottom: 10%; right: 10%; width: 45px; height: 45px; animation-delay: 3s;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">Key Features</h2>
+            <p class="section-subtitle">BrainTeasers offers a diverse collection of interactive puzzles designed to challenge and improve your cognitive skills.</p>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-puzzle-piece"></i>
+                    </div>
+                    <h3 class="feature-title">Multiple Puzzle Categories</h3>
+                    <p class="feature-description">Explore a variety of puzzle types including Logic, Memory, Physics, Word Games, Math Problems, and more.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-medal"></i>
+                    </div>
+                    <h3 class="feature-title">Achievements System</h3>
+                    <p class="feature-description">Earn badges and rewards as you progress through puzzles and complete challenges.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3 class="feature-title">Progress Tracking</h3>
+                    <p class="feature-description">Monitor your improvement with detailed statistics and performance metrics.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-stopwatch"></i>
+                    </div>
+                    <h3 class="feature-title">Daily Challenges</h3>
+                    <p class="feature-description">Face new puzzles every day to keep your brain engaged and your skills sharp.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-signal"></i>
+                    </div>
+                    <h3 class="feature-title">Difficulty Progression</h3>
+                    <p class="feature-description">Start with easy puzzles and advance to more challenging levels as your skills improve.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-wifi-slash"></i>
+                    </div>
+                    <h3 class="feature-title">Offline Gameplay</h3>
+                    <p class="feature-description">Play anytime, anywhere—no internet connection required after downloading.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Game Categories Section -->
+    <section class="categories" id="categories">
+        <div class="container">
+            <h2 class="section-title">Game Categories</h2>
+            <p class="section-subtitle">Discover the diverse range of puzzles designed to exercise different aspects of your brain.</p>
+            
+            <div class="category-grid">
+                <div class="category-card" style="background: linear-gradient(135deg, #2196F3, #1976D2);">
+                    <div class="category-icon">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    <h3 class="category-title">Logic Puzzles</h3>
+                    <p class="category-description">Challenge your logical thinking with pattern recognition and sequence completion.</p>
+                    <span class="category-count">8 Games</span>
+                </div>
+                
+                <div class="category-card" style="background: linear-gradient(135deg, #673AB7, #4527A0);">
+                    <div class="category-icon">
+                        <i class="fas fa-memory"></i>
+                    </div>
+                    <h3 class="category-title">Memory Games</h3>
+                    <p class="category-description">Test and improve your memory with card matching and pattern recall.</p>
+                    <span class="category-count">6 Games</span>
+                </div>
+                
+                <div class="category-card" style="background: linear-gradient(135deg, #FF9800, #F57C00);">
+                    <div class="category-icon">
+                        <i class="fas fa-atom"></i>
+                    </div>
+                    <h3 class="category-title">Physics Puzzles</h3>
+                    <p class="category-description">Solve physics-based challenges with gravity, momentum, and balance.</p>
+                    <span class="category-count">5 Games</span>
+                </div>
+                
+                <div class="category-card" style="background: linear-gradient(135deg, #4CAF50, #388E3C);">
+                    <div class="category-icon">
+                        <i class="fas fa-font"></i>
+                    </div>
+                    <h3 class="category-title">Word Games</h3>
+                    <p class="category-description">Enhance your vocabulary with word searches and word chains.</p>
+                    <span class="category-count">4 Games</span>
+                </div>
+                
+                <div class="category-card" style="background: linear-gradient(135deg, #9C27B0, #7B1FA2);">
+                    <div class="category-icon">
+                        <i class="fas fa-calculator"></i>
+                    </div>
+                    <h3 class="category-title">Math Challenges</h3>
+                    <p class="category-description">Sharpen your numerical skills with equation building and number grids.</p>
+                    <span class="category-count">7 Games</span>
+                </div>
+                
+                <div class="category-card" style="background: linear-gradient(135deg, #F44336, #D32F2F);">
+                    <div class="category-icon">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    <h3 class="category-title">Attention Training</h3>
+                    <p class="category-description">Improve focus with object tracking and visual search exercises.</p>
+                    <span class="category-count">5 Games</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Benefits Section -->
+    <section class="benefits" id="benefits">
+        <div class="container">
+            <div class="benefits-container">
+                <div class="benefits-image">
+                    <img src="/api/placeholder/500/400" alt="Brain Training Benefits">
+                </div>
+                
+                <div class="benefits-content">
+                    <h2 class="benefits-title">Benefits of Brain Training</h2>
+                    
+                    <ul class="benefits-list">
+                        <li class="benefit-item">
+                            <div class="benefit-icon">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <div class="benefit-text">
+                                <h3>Improved Cognitive Function</h3>
+                                <p>Regular brain training can enhance memory, attention, and problem-solving abilities.</p>
+                            </div>
+                        </li>
+                        
+                        <li class="benefit-item">
+                            <div class="benefit-icon">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <div class="benefit-text">
+                                <h3>Faster Mental Processing</h3>
+                                <p>Challenges that require quick thinking help improve your mental processing speed.</p>
+                            </div>
+                        </li>
+                        
+                        <li class="benefit-item">
+                            <div class="benefit-icon">
+                                <i class="fas fa-bullseye"></i>
+                            </div>
+                            <div class="benefit-text">
+                                <h3>Enhanced Focus</h3>
+                                <p>Concentration exercises train your brain to maintain focus for longer periods.</p>
+                            </div>
+                        </li>
+                        
+                        <li class="benefit-item">
+                            <div class="benefit-icon">
+                                <i class="fas fa-sync-alt"></i>
+                            </div>
+                            <div class="benefit-text">
+                                <h3>Mental Flexibility</h3>
+                                <p>Varied puzzle types help develop adaptability and creative problem-solving.</p>
+                            </div>
+                        </li>
+                        
+                        <li class="benefit-item">
+                            <div class="benefit-icon">
+                                <i class="fas fa-smile"></i>
+                            </div>
+                            <div class="benefit-text">
+                                <h3>Stress Reduction</h3>
+                                <p>Engaging in puzzles can be a relaxing activity that helps reduce stress and anxiety.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Screenshots Section -->
+    <section class="screenshots">
+        <div class="container">
+            <h2 class="section-title">App Screenshots</h2>
+            <p class="section-subtitle">Take a peek at the engaging puzzles and sleek interface of BrainTeasers.</p>
+            
+            <div class="screenshots-grid">
+                <div class="screenshot">
+                    <img src="/api/placeholder/200/400" alt="Logic Puzzle Screenshot">
+                </div>
+                <div class="screenshot">
+                    <img src="/api/placeholder/200/400" alt="Memory Game Screenshot">
+                </div>
+                <div class="screenshot">
+                    <img src="/api/placeholder/200/400" alt="Word Game Screenshot">
+                </div>
+                <div class="screenshot">
+                    <img src="/api/placeholder/200/400" alt="Math Challenge Screenshot">
+                </div>
+                <div class="screenshot">
+                    <img src="/api/placeholder/200/400" alt="Statistics Screen">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section class="download" id="download">
+        <div class="container">
+            <h2 class="download-title">Ready to Train Your Brain?</h2>
+            <p class="download-subtitle">Download BrainTeasers now and start your journey to improved cognitive skills.</p>
+            
+            <div class="download-buttons">
+                <a href="#" class="store-button">
+                    <div class="store-icon">
+                        <i class="fab fa-google-play"></i>
+                    </div>
+                    <div class="store-text">
+                        <span class="small-text">GET IT ON</span>
+                        <span class="big-text">Google Play</span>
+                    </div>
+                </a>
+                
+                <a href="#" class="store-button">
+                    <div class="store-icon">
+                        <i class="fab fa-apple"></i>
+                    </div>
+                    <div class="store-text">
+                        <span class="small-text">DOWNLOAD ON THE</span>
+                        <span class="big-text">App Store</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-column">
+                    <h3>BrainTeasers</h3>
+                    <p>Train your brain with engaging puzzles designed to improve memory, logic, attention, and more.</p>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                
+                <div class="footer-column">
+                    <h3>Quick Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#categories">Game Types</a></li>
+                        <li><a href="#benefits">Benefits</a></li>
+                        <li><a href="#download">Download</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-column">
+                    <h3>Support</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">FAQ</a></li>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Contact Us</a></li>
+                        <li><a href="#">Feedback</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-column">
+                    <h3>Legal</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Cookie Policy</a></li>
+                        <li><a href="#">Licenses</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="copyright">
+                <p>&copy; 2025 BrainTeasers. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

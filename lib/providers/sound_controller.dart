@@ -6,6 +6,47 @@ import 'dart:async';
 
 import '../providers/common.dart';
 import '../db/database.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
+
+import '../db/database.dart';
+import '../providers/common.dart';
+
+/// State class to hold sound settings
+class SoundState {
+  final bool isSoundEnabled;
+  final bool isMusicEnabled;
+  final bool isVibrationEnabled;
+  final double soundVolume;
+  final double musicVolume;
+
+  const SoundState({
+    required this.isSoundEnabled,
+    required this.isMusicEnabled,
+    required this.isVibrationEnabled,
+    required this.soundVolume,
+    required this.musicVolume,
+  });
+
+  SoundState copyWith({
+    bool? isSoundEnabled,
+    bool? isMusicEnabled,
+    bool? isVibrationEnabled,
+    double? soundVolume,
+    double? musicVolume,
+  }) {
+    return SoundState(
+      isSoundEnabled: isSoundEnabled ?? this.isSoundEnabled,
+      isMusicEnabled: isMusicEnabled ?? this.isMusicEnabled,
+      isVibrationEnabled: isVibrationEnabled ?? this.isVibrationEnabled,
+      soundVolume: soundVolume ?? this.soundVolume,
+      musicVolume: musicVolume ?? this.musicVolume,
+    );
+  }
+}
 
 /// Enum for different sound categories
 enum SoundType {
@@ -15,41 +56,37 @@ enum SoundType {
   click,
   match,
   levelComplete,
-  gameComplete,
-  countdown,
-  hint,
   cardFlip,
-  unlock,
   achievement,
   bonus,
 }
 
 /// Provider for the sound controller
-final soundControllerProvider = Provider<SoundController>((ref) {
+final soundControllerProvider =
+    StateNotifierProvider<SoundController, SoundState>((ref) {
   final database = ref.watch(databaseProvider);
   return SoundController(database: database);
 });
 
 /// Controller to manage all sound and music in the app
-class SoundController {
+class SoundController extends StateNotifier<SoundState> {
   final AppDatabase database;
 
   // Audio players
   final AudioPlayer _bgmPlayer = AudioPlayer();
   final Map<String, AudioPlayer> _effectPlayers = {};
 
-  // Current state
-  bool _isSoundEnabled = true;
-  bool _isMusicEnabled = true;
-  bool _isVibrationEnabled = true;
-  double _soundVolume = 1.0;
-  double _musicVolume = 0.7;
-  String? _currentBgm;
-
   // Maximum concurrent effect players
   static const int _maxEffectPlayers = 5;
 
-  SoundController({required this.database}) {
+  SoundController({required this.database})
+      : super(const SoundState(
+          isSoundEnabled: true,
+          isMusicEnabled: true,
+          isVibrationEnabled: true,
+          soundVolume: 1.0,
+          musicVolume: 0.7,
+        )) {
     _init();
   }
 
@@ -58,7 +95,7 @@ class SoundController {
     await _loadSettings();
 
     // Initialize bgm player
-    await _bgmPlayer.setVolume(_musicVolume);
+    await _bgmPlayer.setVolume(state.musicVolume);
     await _bgmPlayer.setLoopMode(LoopMode.all);
   }
 
@@ -69,9 +106,11 @@ class SoundController {
       final musicEnabled = await database.getSetting('music_enabled');
       final vibrationEnabled = await database.getSetting('vibration_enabled');
 
-      _isSoundEnabled = soundEnabled == 'true';
-      _isMusicEnabled = musicEnabled == 'true';
-      _isVibrationEnabled = vibrationEnabled == 'true';
+      state = state.copyWith(
+        isSoundEnabled: soundEnabled == 'true',
+        isMusicEnabled: musicEnabled == 'true',
+        isVibrationEnabled: vibrationEnabled == 'true',
+      );
     } catch (e) {
       // Default values already set
       debugPrint("Error loading sound settings: $e");
@@ -79,19 +118,16 @@ class SoundController {
   }
 
   /// Get appropriate sound file path
-  String _getSoundFile(SoundType type, {String? variant}) {
+  String _getSoundFile(SoundType type) {
     switch (type) {
       case SoundType.bgm:
-        if (variant != null) {
-          return 'assets/audio/bgm/$variant.mp3';
-        }
         return 'assets/audio/bgm/main_theme.mp3';
 
       case SoundType.success:
         return 'assets/audio/sfx/success.mp3';
 
       case SoundType.failure:
-        return 'assets/audio/sfx/failure.mp3';
+        return 'assets/audio/sfx/negative.mp3';
 
       case SoundType.click:
         return 'assets/audio/sfx/click.mp3';
@@ -102,34 +138,22 @@ class SoundController {
       case SoundType.levelComplete:
         return 'assets/audio/sfx/level_complete.mp3';
 
-      case SoundType.gameComplete:
-        return 'assets/audio/sfx/game_complete.mp3';
-
-      case SoundType.countdown:
-        return 'assets/audio/sfx/countdown.mp3';
-
-      case SoundType.hint:
-        return 'assets/audio/sfx/hint.mp3';
-
       case SoundType.cardFlip:
-        return 'assets/audio/sfx/card_flip.mp3';
-
-      case SoundType.unlock:
-        return 'assets/audio/sfx/unlock.mp3';
+        return 'assets/audio/sfx/flipcard.mp3';
 
       case SoundType.achievement:
-        return 'assets/audio/sfx/achievement.mp3';
+        return 'assets/audio/sfx/notify.mp3';
 
       case SoundType.bonus:
-        return 'assets/audio/sfx/bonus.mp3';
+        return 'assets/audio/sfx/notify.mp3';
     }
   }
 
   /// Play a background music track
-  Future<void> playBgm(String variant) async {
-    if (!_isMusicEnabled || _currentBgm == variant) return;
+  Future<void> playBgm() async {
+    if (!state.isMusicEnabled) return;
 
-    String soundFile = _getSoundFile(SoundType.bgm, variant: variant);
+    String soundFile = _getSoundFile(SoundType.bgm);
 
     try {
       // Stop current BGM if playing
@@ -137,9 +161,8 @@ class SoundController {
 
       // Play new BGM
       await _bgmPlayer.setAsset(soundFile);
-      await _bgmPlayer.setVolume(_musicVolume);
+      await _bgmPlayer.setVolume(state.musicVolume);
       await _bgmPlayer.play();
-      _currentBgm = variant;
     } catch (e) {
       debugPrint("Error playing BGM: $e");
     }
@@ -149,7 +172,6 @@ class SoundController {
   Future<void> stopBgm() async {
     if (_bgmPlayer.playing) {
       await _bgmPlayer.stop();
-      _currentBgm = null;
     }
   }
 
@@ -162,25 +184,25 @@ class SoundController {
 
   /// Resume the background music
   Future<void> resumeBgm() async {
-    if (_isMusicEnabled && _currentBgm != null && !_bgmPlayer.playing) {
+    if (state.isMusicEnabled && !_bgmPlayer.playing) {
       await _bgmPlayer.play();
     }
   }
 
   /// Fade out the background music
-  Future<void> fadeBgm(
-      {Duration duration = const Duration(milliseconds: 1000)}) async {
+  Future<void> fadeBgm({
+    Duration duration = const Duration(milliseconds: 1000),
+  }) async {
     if (_bgmPlayer.playing) {
       final timer = Timer.periodic(
         Duration(milliseconds: (duration.inMilliseconds / 10).round()),
         (timer) async {
-          double newVolume = _bgmPlayer.volume - (_musicVolume / 10);
+          double newVolume = _bgmPlayer.volume - (state.musicVolume / 10);
           if (newVolume <= 0) {
             timer.cancel();
             await _bgmPlayer.setVolume(0);
             await _bgmPlayer.stop();
-            await _bgmPlayer.setVolume(_musicVolume);
-            _currentBgm = null;
+            await _bgmPlayer.setVolume(state.musicVolume);
           } else {
             await _bgmPlayer.setVolume(newVolume);
           }
@@ -191,7 +213,7 @@ class SoundController {
 
   /// Play a sound effect
   Future<void> playEffect(SoundType type) async {
-    if (!_isSoundEnabled) return;
+    if (!state.isSoundEnabled) return;
 
     final soundFile = _getSoundFile(type);
 
@@ -230,7 +252,7 @@ class SoundController {
       }
 
       await player.setAsset(soundFile);
-      await player.setVolume(_soundVolume);
+      await player.setVolume(state.soundVolume);
       await player.play();
     } catch (e) {
       debugPrint("Error playing sound effect: $e");
@@ -240,7 +262,7 @@ class SoundController {
   /// Trigger a device vibration
   Future<void> vibrate(
       {Duration duration = const Duration(milliseconds: 300)}) async {
-    if (!_isVibrationEnabled) return;
+    if (!state.isVibrationEnabled) return;
 
     try {
       await HapticFeedback.vibrate();
@@ -263,19 +285,17 @@ class SoundController {
 
   /// Enable or disable sound
   Future<void> setSoundEnabled(bool enabled) async {
-    _isSoundEnabled = enabled;
+    state = state.copyWith(isSoundEnabled: enabled);
     await database.setSetting('sound_enabled', enabled.toString());
   }
 
   /// Enable or disable music
   Future<void> setMusicEnabled(bool enabled) async {
-    _isMusicEnabled = enabled;
+    state = state.copyWith(isMusicEnabled: enabled);
     await database.setSetting('music_enabled', enabled.toString());
 
     if (enabled) {
-      if (_currentBgm != null) {
-        await resumeBgm();
-      }
+      await resumeBgm();
     } else {
       await pauseBgm();
     }
@@ -283,40 +303,24 @@ class SoundController {
 
   /// Enable or disable vibration
   Future<void> setVibrationEnabled(bool enabled) async {
-    _isVibrationEnabled = enabled;
+    state = state.copyWith(isVibrationEnabled: enabled);
     await database.setSetting('vibration_enabled', enabled.toString());
   }
 
   /// Set sound volume
   void setSoundVolume(double volume) {
-    _soundVolume = volume.clamp(0.0, 1.0);
+    final clampedVolume = volume.clamp(0.0, 1.0);
+    state = state.copyWith(soundVolume: clampedVolume);
   }
 
   /// Set music volume
   Future<void> setMusicVolume(double volume) async {
-    _musicVolume = volume.clamp(0.0, 1.0);
-    await _bgmPlayer.setVolume(_musicVolume);
+    final clampedVolume = volume.clamp(0.0, 1.0);
+    state = state.copyWith(musicVolume: clampedVolume);
+    await _bgmPlayer.setVolume(clampedVolume);
   }
 
-  /// Get sound enabled state
-  bool get isSoundEnabled => _isSoundEnabled;
-
-  /// Get music enabled state
-  bool get isMusicEnabled => _isMusicEnabled;
-
-  /// Get vibration enabled state
-  bool get isVibrationEnabled => _isVibrationEnabled;
-
-  /// Get sound volume
-  double get soundVolume => _soundVolume;
-
-  /// Get music volume
-  double get musicVolume => _musicVolume;
-
-  /// Get current background music
-  String? get currentBgm => _currentBgm;
-
-  /// Dispose all audio players
+  @override
   Future<void> dispose() async {
     await stopBgm();
     await _bgmPlayer.dispose();
@@ -325,5 +329,7 @@ class SoundController {
       await player.dispose();
     }
     _effectPlayers.clear();
+
+    super.dispose();
   }
 }

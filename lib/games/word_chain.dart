@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'dart:async';
 
-import '../ui/components/game_container.dart';
+import '../core/utils/word_chain_level_manager.dart';
+
 import '../ui/theme/app_theme.dart';
 import 'controller/game_controller.dart';
 
@@ -27,7 +28,7 @@ class _WordChainGameState extends State<WordChainGame> {
   late String startWord;
   late String targetWord;
   late List<String> wordChain;
-  late TextEditingController _controller;
+  TextEditingController? _controller;
   String? errorMessage;
   int score = 0;
   int moves = 0;
@@ -35,38 +36,101 @@ class _WordChainGameState extends State<WordChainGame> {
   bool isComplete = false;
   bool isCheckingWord = false;
   int timeRemaining = 0;
+  final List<String> _vocabulary = [];
+  late WordChainLevelManager _levelManager;
+  late Map<String, dynamic> _currentLevel;
+  String? hint;
 
   @override
   void initState() {
     super.initState();
-    startWord = widget.gameData['start'];
-    targetWord = widget.gameData['end'];
-    wordChain = [startWord];
+    _levelManager = WordChainLevelManager();
+    widget.gameController.setValues(
+      maxLevels: _levelManager.maxLevel,
+    );
+    _initializeGame();
     _controller = TextEditingController();
 
-    // Start game timer with game controller
-    widget.gameController.startGame(
-      timeLimit: 180, // 3 minutes
-      maxLevels: 1,
-    );
+    // Load vocabulary from local assets
+    _loadVocabulary();
   }
 
-  // Validate if a word exists using an online API (optional, as a fallback)
-  Future<bool> _isRealWord(String word) async {
+  void _initializeGame() {
+    // Get current level from game controller
+    final levelIndex = widget.gameController.currentLevel + 1;
+
+    // Use the level manager to get the level data
+    _currentLevel = _levelManager.getLevel(levelIndex);
+    startWord = _currentLevel['start'];
+    targetWord = _currentLevel['end'];
+    maxMoves = _currentLevel['maxMoves'];
+    hint = _currentLevel['hint'];
+
+    // Initialize the game with the level data
+    wordChain = [startWord];
+    moves = 0;
+    score = 0;
+    isComplete = false;
+    isCheckingWord = false;
+    errorMessage = null;
+
+    // Start the game with the game controller
+    widget.gameController.startGame(
+      timeLimit: _currentLevel['timeLimit'],
+      maxLevels: _levelManager.maxLevel,
+      level: levelIndex, // Set current level explicitly
+    );
+
+    // Clear the text controller
+    if (_controller != null) {
+      _controller?.clear();
+    }
+
+    // Update the game controller with the initial values
+    widget.gameController.updateScore(score);
+  }
+
+  Future<void> _loadVocabulary() async {
     try {
-      // Only call API if we don't have a local dictionary
+      // You can load from a local JSON file or use assets
+      String data =
+          await rootBundle.loadString('assets/data/english_words.txt');
+      List<String> words = data.split('\n');
+
+      // Filter words to only include those with the same length as startWord
+      final wordLength = startWord.length;
+      _vocabulary.addAll(
+        words.where((word) => word.length == wordLength),
+      );
+    } catch (e) {
+      // If loading fails, we'll fallback to the online dictionary API
+      print('Failed to load vocabulary: $e');
+    }
+  }
+
+  // Validate if a word exists using a vocabulary list or an online API
+  Future<bool> _isRealWord(String word) async {
+    // First check local vocabulary
+    if (_vocabulary.isNotEmpty) {
+      return _vocabulary.contains(word.toLowerCase());
+    }
+
+    // Fallback to online dictionary API
+    try {
       final response = await http.get(
         Uri.parse('https://api.dictionaryapi.dev/api/v2/entries/en/$word'),
       );
       return response.statusCode == 200;
     } catch (e) {
-      return false;
+      // If both methods fail, default to accepting the word
+      // In a production app, you might want a more comprehensive solution
+      return true;
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -113,9 +177,11 @@ class _WordChainGameState extends State<WordChainGame> {
     setState(() {
       errorMessage = null;
       wordChain.add(newWord);
-      _controller.clear();
+      _controller?.clear();
       moves++;
       isCheckingWord = false;
+
+      // Update the game controller state
       widget.gameController.incrementMoves();
 
       // Calculate score based on moves and word length
@@ -125,12 +191,33 @@ class _WordChainGameState extends State<WordChainGame> {
 
       if (newWord == targetWord) {
         isComplete = true;
-        widget.gameController.completeGame();
+
+        // Save level progress using level manager
+        _saveProgress();
+
+        // Check if this is the final level
+        final currentLevel = widget.gameController.currentLevel;
+        final isLastLevel = currentLevel >= _levelManager.maxLevel - 1;
+
+        if (isLastLevel) {
+          // If this is the final level, mark the game as complete
+          widget.gameController.completeGame();
+        } else {}
       } else if (moves >= maxMoves) {
         errorMessage = 'Out of moves! Game Over';
         widget.gameController.gameOver();
       }
     });
+  }
+
+  void _saveProgress() async {
+    final levelIndex = widget.gameController.currentLevel;
+    await _levelManager.saveLevelScore(levelIndex, score, moves);
+
+    // If this isn't the last level, unlock the next one
+    if (levelIndex < _levelManager.maxLevel) {
+      await _levelManager.unlockNextLevel(levelIndex);
+    }
   }
 
   bool _isOneLetterDifferent(String word1, String word2) {
@@ -155,18 +242,48 @@ class _WordChainGameState extends State<WordChainGame> {
     }
   }
 
+  void _showHint() {
+    if (hint != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(hint!),
+          backgroundColor: AppTheme.primaryColor,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  void _moveToNextLevel() {
+    // Move to the next level
+    final success = widget.gameController.nextLevel();
+    if (success) {
+      // Reset game state for the new level
+      setState(() {
+        isComplete = false;
+        _initializeGame();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GameContainer(
-      child: Column(
-        children: [
-          _buildHeader(),
-          Expanded(
-            child: _buildWordChain(),
-          ),
-          if (!isComplete) _buildInputSection(),
-        ],
-      ),
+    return Stack(
+      children: [
+        Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: _buildWordChain(),
+            ),
+            if (!isComplete) _buildInputSection(),
+          ],
+        ),
+
+        // Level completion overlay
+        if (isComplete && !widget.gameController.isComplete)
+          _buildLevelCompletionOverlay(),
+      ],
     );
   }
 
@@ -377,6 +494,107 @@ class _WordChainGameState extends State<WordChainGame> {
     );
   }
 
+  Widget _buildLevelCompletionOverlay() {
+    final currentLevel = widget.gameController.currentLevel;
+    final isLastLevel = currentLevel >= _levelManager.maxLevel - 1;
+
+    return Container(
+      color: Colors.black.withOpacity(0.7),
+      child: Center(
+        child: Card(
+          margin: const EdgeInsets.all(32),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.emoji_events,
+                  size: 64,
+                  color: AppTheme.accentColor,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isLastLevel ? 'Game Complete!' : 'Level Complete!',
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'You solved it in $moves moves!',
+                  style: GoogleFonts.poppins(fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Score: $score',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.accentColor,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (!isLastLevel)
+                      ElevatedButton.icon(
+                        onPressed: _moveToNextLevel,
+                        icon: const Icon(
+                          Icons.arrow_forward,
+                          color: Colors.white,
+                        ),
+                        label: const Text('Next Level'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    if (isLastLevel)
+                      ElevatedButton(
+                        onPressed: () {
+                          // Return to the puzzle selection screen
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Finish'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                        ),
+                      ),
+                    const SizedBox(width: 12),
+                    TextButton(
+                      onPressed: () {
+                        // Reset the current level
+                        setState(() {
+                          isComplete = false;
+                          _initializeGame();
+                        });
+                        widget.gameController.resumeGame();
+                      },
+                      child: const Text('Play Again'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).animate().fadeIn(duration: const Duration(milliseconds: 300));
+  }
+
   Widget _buildInputSection() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -441,6 +659,11 @@ class _WordChainGameState extends State<WordChainGame> {
                 onPressed: wordChain.length > 1 ? _undoLastMove : null,
                 icon: const Icon(Icons.undo),
                 color: AppTheme.primaryColor,
+              ),
+              IconButton(
+                onPressed: hint != null ? _showHint : null,
+                icon: const Icon(Icons.lightbulb_outline),
+                color: AppTheme.hintColor,
               ),
             ],
           ),

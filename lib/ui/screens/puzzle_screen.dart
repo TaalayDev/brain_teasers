@@ -1,5 +1,7 @@
+import 'package:brain_teasers/core/game_sound_manager.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flame/game.dart' show FlameGame, GameWidget;
@@ -28,6 +30,7 @@ import '../../games/visual_search.dart';
 import '../../games/word_chain.dart';
 import '../../games/word_search.dart';
 import '../../providers/common.dart';
+import '../../providers/sound_controller.dart';
 import '../theme/app_theme.dart';
 import '../../db/database.dart';
 import '../components/game_container.dart';
@@ -59,7 +62,7 @@ final puzzleProgressProvider =
   return database.getProgressForPuzzle(int.parse(id));
 });
 
-class PuzzleScreen extends ConsumerStatefulWidget {
+class PuzzleScreen extends StatefulHookConsumerWidget {
   final String puzzleId;
 
   const PuzzleScreen({
@@ -73,6 +76,7 @@ class PuzzleScreen extends ConsumerStatefulWidget {
 
 class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
   late GameController _gameController;
+  GameSoundManager? _gameSoundManager;
 
   @override
   void initState() {
@@ -125,6 +129,19 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen> {
         },
       ),
     ));
+
+    useEffect(() {
+      _gameSoundManager = GameSoundManager(
+        gameController: _gameController,
+        soundController: ref.read(soundControllerProvider.notifier),
+      );
+
+      return () {
+        // Dispose of the sound manager when the widget is removed
+        _gameSoundManager?.dispose();
+        _gameSoundManager = null;
+      };
+    }, const []);
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,

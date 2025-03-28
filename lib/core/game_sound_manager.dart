@@ -1,6 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
-
 import '../providers/sound_controller.dart';
 import '../games/controller/game_controller.dart';
 
@@ -51,7 +48,7 @@ class GameSoundManager {
         break;
 
       case GameState.complete:
-        soundController.playEffect(SoundType.gameComplete);
+        soundController.playEffect(SoundType.success);
         soundController.fadeBgm(duration: const Duration(milliseconds: 2000));
         break;
 
@@ -65,21 +62,7 @@ class GameSoundManager {
   }
 
   void _startGameMusic() {
-    // Choose appropriate background music based on game type or level
-    final level = gameController.currentLevel;
-    final musicVariant = _getMusicVariantForLevel(level);
-    soundController.playBgm(musicVariant);
-  }
-
-  String _getMusicVariantForLevel(int level) {
-    // You can customize this logic based on game difficulty, type, etc.
-    if (level <= 3) {
-      return 'casual';
-    } else if (level <= 6) {
-      return 'medium';
-    } else {
-      return 'intense';
-    }
+    soundController.playBgm();
   }
 
   // Method to handle successful actions like correct match, puzzle solved, etc.
@@ -105,11 +88,6 @@ class GameSoundManager {
   // Method to play sound when cards are flipped
   void playCardFlipSound() {
     soundController.playEffect(SoundType.cardFlip);
-  }
-
-  // Method to play hint sound
-  void playHintSound() {
-    soundController.playEffect(SoundType.hint);
   }
 
   // Method to handle achievement unlocked

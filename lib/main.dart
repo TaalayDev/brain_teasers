@@ -44,6 +44,7 @@ class BrainTeasersApp extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     useEffect(() {
+      ref.read(soundControllerProvider.notifier).playBgm();
       // ref.read(soundControllerProvider).playBgm('main_theme');
       return null;
     }, const []);

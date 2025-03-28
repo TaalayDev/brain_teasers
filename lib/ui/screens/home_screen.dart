@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/screen_size.dart';
 import '../../core/utils/extensions.dart';
 import '../../providers/common.dart';
+import '../../providers/sound_controller.dart';
 import '../theme/app_theme.dart';
 import '../../db/database.dart';
 
@@ -56,7 +57,12 @@ class HomeScreen extends ConsumerWidget {
             actions: [
               IconButton(
                 icon: const Icon(Feather.award),
-                onPressed: () => context.push('/achievements'),
+                onPressed: () {
+                  ref
+                      .read(soundControllerProvider.notifier)
+                      .playEffect(SoundType.click);
+                  context.push('/achievements');
+                },
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white.withOpacity(0.2),
                 ),
@@ -64,18 +70,28 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Feather.bar_chart_2),
-                onPressed: () => context.push('/statistics'),
+                onPressed: () {
+                  ref
+                      .read(soundControllerProvider.notifier)
+                      .playEffect(SoundType.click);
+                  context.push('/statistics');
+                },
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white.withOpacity(0.2),
                 ),
               ),
-              // IconButton(
-              //   icon: const Icon(Feather.settings),
-              //   onPressed: () => context.push('/settings'),
-              //   style: IconButton.styleFrom(
-              //     backgroundColor: Colors.white.withOpacity(0.2),
-              //   ),
-              // ),
+              IconButton(
+                icon: const Icon(Feather.settings),
+                onPressed: () {
+                  ref
+                      .read(soundControllerProvider.notifier)
+                      .playEffect(SoundType.click);
+                  context.push('/settings');
+                },
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                ),
+              ),
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -322,6 +338,9 @@ class HomeScreen extends ConsumerWidget {
             final database = ref.read(databaseProvider);
             final puzzle = await database.getDailyPuzzle();
             if (context.mounted) {
+              ref
+                  .read(soundControllerProvider.notifier)
+                  .playEffect(SoundType.click);
               context.push('/puzzle/${puzzle.id}');
             }
           },
@@ -396,6 +415,9 @@ class HomeScreen extends ConsumerWidget {
         categoriesAsync: categoriesAsync,
         selectedCategory: selectedCategory,
         onCategorySelected: (categoryId) {
+          ref
+              .read(soundControllerProvider.notifier)
+              .playEffect(SoundType.click);
           ref.read(selectedCategoryProvider.notifier).state = categoryId;
         },
       ),
@@ -470,6 +492,10 @@ class HomeScreen extends ConsumerWidget {
       ),
       child: InkWell(
         onTap: () {
+          ref
+              .read(soundControllerProvider.notifier)
+              .playEffect(SoundType.click);
+
           context.push('/puzzle/${puzzle.id}');
 
           ref.read(analyticsProvider).logPuzzleStart(

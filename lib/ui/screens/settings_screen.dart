@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../providers/common.dart';
 import '../../providers/sound_controller.dart';
@@ -22,13 +24,13 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final soundController = ref.watch(soundControllerProvider);
+    final soundState = ref.watch(soundControllerProvider);
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           _buildAppBar(),
-          _buildSettingsList(context, ref, soundController),
+          _buildSettingsList(context, ref, soundState),
         ],
       ),
     );
@@ -83,8 +85,9 @@ class SettingsScreen extends ConsumerWidget {
   Widget _buildSettingsList(
     BuildContext context,
     WidgetRef ref,
-    SoundController soundController,
+    SoundState soundState,
   ) {
+    final soundController = ref.watch(soundControllerProvider.notifier);
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -99,15 +102,16 @@ class SettingsScreen extends ConsumerWidget {
                   context,
                   title: 'Sound Effects',
                   icon: Icons.volume_up_rounded,
-                  child: _buildSoundSwitch(context, soundController),
+                  child:
+                      _buildSoundSwitch(context, soundState, soundController),
                 ),
                 _buildDivider(),
-                if (soundController.isSoundEnabled)
+                if (soundState.isSoundEnabled)
                   Padding(
                     padding: const EdgeInsets.only(left: 58.0, bottom: 16),
                     child: _buildVolumeSlider(
                       context,
-                      value: soundController.soundVolume,
+                      value: soundState.soundVolume,
                       onChanged: (value) =>
                           soundController.setSoundVolume(value),
                       onChangeEnd: (_) =>
@@ -118,15 +122,19 @@ class SettingsScreen extends ConsumerWidget {
                   context,
                   title: 'Background Music',
                   icon: Icons.music_note_rounded,
-                  child: _buildMusicSwitch(context, soundController),
+                  child: _buildMusicSwitch(
+                    context,
+                    soundState,
+                    soundController,
+                  ),
                 ),
                 _buildDivider(),
-                if (soundController.isMusicEnabled)
+                if (soundState.isMusicEnabled)
                   Padding(
                     padding: const EdgeInsets.only(left: 58.0, bottom: 16),
                     child: _buildVolumeSlider(
                       context,
-                      value: soundController.musicVolume,
+                      value: soundState.musicVolume,
                       onChanged: (value) =>
                           soundController.setMusicVolume(value),
                     ),
@@ -135,51 +143,55 @@ class SettingsScreen extends ConsumerWidget {
                   context,
                   title: 'Vibration',
                   icon: Icons.vibration_rounded,
-                  child: _buildVibrationSwitch(context, soundController),
+                  child: _buildVibrationSwitch(
+                    context,
+                    soundState,
+                    soundController,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            _buildSectionTitle(context, 'Display'),
-            _buildSettingsCard(
-              context,
-              children: [
-                _buildSettingItem(
-                  context,
-                  title: 'Theme Mode',
-                  icon: Icons.palette_rounded,
-                  child: _buildThemeModePicker(context),
-                ),
-                _buildDivider(),
-                _buildSettingItem(
-                  context,
-                  title: 'Difficulty',
-                  icon: Icons.trending_up_rounded,
-                  child: _buildDifficultyPicker(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle(context, 'Data'),
-            _buildSettingsCard(
-              context,
-              children: [
-                _buildSettingItem(
-                  context,
-                  title: 'Reset Progress',
-                  icon: Icons.restart_alt_rounded,
-                  child: _buildResetButton(context),
-                ),
-                _buildDivider(),
-                _buildSettingItem(
-                  context,
-                  title: 'Clear Cache',
-                  icon: Icons.cleaning_services_rounded,
-                  child: _buildClearCacheButton(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+            // _buildSectionTitle(context, 'Display'),
+            // _buildSettingsCard(
+            //   context,
+            //   children: [
+            //     _buildSettingItem(
+            //       context,
+            //       title: 'Theme Mode',
+            //       icon: Icons.palette_rounded,
+            //       child: _buildThemeModePicker(context),
+            //     ),
+            //     _buildDivider(),
+            //     _buildSettingItem(
+            //       context,
+            //       title: 'Difficulty',
+            //       icon: Icons.trending_up_rounded,
+            //       child: _buildDifficultyPicker(context),
+            //     ),
+            //   ],
+            // ),
+            //const SizedBox(height: 24),
+            // _buildSectionTitle(context, 'Data'),
+            // _buildSettingsCard(
+            //   context,
+            //   children: [
+            //     _buildSettingItem(
+            //       context,
+            //       title: 'Reset Progress',
+            //       icon: Icons.restart_alt_rounded,
+            //       child: _buildResetButton(context),
+            //     ),
+            //     _buildDivider(),
+            //     _buildSettingItem(
+            //       context,
+            //       title: 'Clear Cache',
+            //       icon: Icons.cleaning_services_rounded,
+            //       child: _buildClearCacheButton(context),
+            //     ),
+            //   ],
+            // ),
+            //const SizedBox(height: 24),
             _buildSectionTitle(context, 'About'),
             _buildSettingsCard(
               context,
@@ -206,7 +218,11 @@ class SettingsScreen extends ConsumerWidget {
                   icon: Icons.privacy_tip_rounded,
                   onTap: () {
                     soundController.playEffect(SoundType.click);
-                    // Navigate to privacy policy
+
+                    launchUrlString(
+                      'https://taalaydev.github.io/files/brainteasers-privacy-policy.html',
+                      mode: LaunchMode.externalApplication,
+                    );
                   },
                 ),
                 _buildDivider(),
@@ -216,7 +232,11 @@ class SettingsScreen extends ConsumerWidget {
                   icon: Icons.description_rounded,
                   onTap: () {
                     soundController.playEffect(SoundType.click);
-                    // Navigate to terms of service
+
+                    launchUrlString(
+                      'https://taalaydev.github.io/files/brainteasers-terms.html',
+                      mode: LaunchMode.externalApplication,
+                    );
                   },
                 ),
               ],
@@ -335,10 +355,11 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildSoundSwitch(
     BuildContext context,
+    SoundState soundState,
     SoundController soundController,
   ) {
     return Switch(
-      value: soundController.isSoundEnabled,
+      value: soundState.isSoundEnabled,
       onChanged: (value) {
         soundController.setSoundEnabled(value);
         if (value) {
@@ -350,13 +371,14 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildMusicSwitch(
     BuildContext context,
+    SoundState soundState,
     SoundController soundController,
   ) {
     return Switch(
-      value: soundController.isMusicEnabled,
+      value: soundState.isMusicEnabled,
       onChanged: (value) {
         soundController.setMusicEnabled(value);
-        if (value && soundController.isSoundEnabled) {
+        if (value && soundState.isSoundEnabled) {
           soundController.playEffect(SoundType.click);
         }
       },
@@ -365,13 +387,14 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildVibrationSwitch(
     BuildContext context,
+    SoundState soundState,
     SoundController soundController,
   ) {
     return Switch(
-      value: soundController.isVibrationEnabled,
+      value: soundState.isVibrationEnabled,
       onChanged: (value) {
         soundController.setVibrationEnabled(value);
-        if (soundController.isSoundEnabled) {
+        if (soundState.isSoundEnabled) {
           soundController.playEffect(SoundType.click);
         }
         if (value) {
